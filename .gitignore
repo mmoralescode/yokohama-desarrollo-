@@ -1,0 +1,25 @@
+# Runtime data and credentials never belong in Git.
+**/.venv/
+**/venv/
+**/__pycache__/
+**/.pytest_cache/
+**/*.pyc
+**/data/
+**/*.db
+**/*.db-wal
+**/*.db-shm
+**/*.sqlite*
+**/node_modules/
+**/.next/
+**/.next-*/
+**/out/
+**/playwright-report/
+**/test-results/
+**/*.tsbuildinfo
+**/next-env.d.ts
+**/.env
+**/.env.*
+!**/.env.example
+**/*.log
+tmp/
+.runtime/

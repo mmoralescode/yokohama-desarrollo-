@@ -1,0 +1,3090 @@
+{
+  "version_catalogo": "0.1.0",
+  "estado": "borrador_para_aprobacion_fase_1",
+  "fecha_corte": "2026-09-19",
+  "proyecto": "Sistema para Yokohama",
+  "rama": "sistema-para-yokohama",
+  "alcance": {
+    "modelo": "Mazda3",
+    "mercado": "Mexico",
+    "anios_modelo": [
+      2021,
+      2022,
+      2023,
+      2024,
+      2025,
+      2026
+    ],
+    "numero_anios_modelo": 6,
+    "carrocerias": [
+      "sedan",
+      "hatchback"
+    ],
+    "variantes_archivo": "variantes-mx.v0.1.0.json"
+  },
+  "definiciones": {
+    "intervalos": "Kilómetros/meses: vence el primero. No son predicción de avería.",
+    "null": "No documentado/no aplicable: consultar notas; NUNCA equivale a infinito, cero, seguro o sin mantenimiento.",
+    "tolerancia": "Extensión mecánica autorizada después del ideal. No se encontró evidencia suficiente para asignarla; pendiente agencia.",
+    "severidad": "Clasificación operativa propuesta por el equipo, no taxonomía oficial Mazda. Inspección de seguridad pendiente no significa falla presente.",
+    "consecuencias": "Inferencias técnicas cualitativas del equipo; no probabilidades ni diagnóstico confirmado.",
+    "confianza": "Calidad/aplicabilidad documental de la regla; NO probabilidad de falla ni precisión de fecha calculada.",
+    "duracion": "Estancia de taller desconocida salvo dato publicado con alcance explícito. No confundir horas de mano de obra con días parado."
+  },
+  "propuestas_no_activadas": {
+    "alertas_dias_antes_limite": [
+      30,
+      15,
+      7,
+      3
+    ],
+    "tolerancia_por_defecto_km": 0,
+    "tolerancia_por_defecto_dias": 0,
+    "origen": "Política conservadora propia sujeta a aprobación; cero significa no autorizar prórroga, no riesgo cero.",
+    "cuando_tolerancia_desconocida": "No recomendar fecha posterior al vencimiento de referencia; marcar límite seguro pendiente.",
+    "cuando_conflicto_intervalos": "Proponer provisionalmente el criterio más temprano del manual aplicable, previa aprobación; pedir confirmación escrita a Mazda.",
+    "cuando_servicio_vencido": "Mostrar vencido y gestionar evaluación ahora; no trasladar artificialmente el límite al futuro.",
+    "agrupacion": "Solo con ventana común validada, severidad compatible y tiempo suficiente para ejecución. Admitir adelantar servicios con autorización para agrupar; no inventar prórrogas.",
+    "fallas_reportadas": "Alerta inmediata. Si no hay triage suficiente, estado requiere evaluación, nunca 'puede esperar' por defecto.",
+    "seguridad": "Pérdida de frenado, fuga de combustible, presión de aceite crítica, sobrecalentamiento o llanta insegura no esperan a visita agrupada. Detener operación en lugar seguro y coordinar asistencia, no ordenar conducir al taller.",
+    "fecha_ingreso_vs_terminacion": "La fecha de ingreso debe reservar tiempo de diagnóstico/servicio, refacciones y capacidad del taller; el límite del mantenimiento no es automáticamente un límite para solo dejar las llaves.",
+    "pocos_datos": "Sin tasa de uso calibrada ni historial: confianza baja y fecha no estimable, hasta aprobar valor de respaldo. No asumir última reparación en km cero."
+  },
+  "conflictos": [
+    {
+      "id": "C01",
+      "asunto": "Frecuencia temporal y alcance programa web vs manual",
+      "fuente": [
+        {
+          "id": "MXWEB",
+          "url": "https://www.mazda.mx/servicio-mazda/mantenimiento-mazda/mantenimiento"
+        },
+        {
+          "id": "M21",
+          "url": "https://www.mazda.mx/static/manuals/2021/2021_mazda3_web_om_sp/contents/07020603.html"
+        },
+        {
+          "id": "M22",
+          "url": "https://www.mazdausa.com/static/manuals/2022/mazda3/contents/07020603.html"
+        },
+        {
+          "id": "M23",
+          "url": "https://www.mazda.mx/static/manuals/2023/mazda3/2023_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M24",
+          "url": "https://www.mazda.mx/static/manuals/2024/mazda3/2024_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M25",
+          "url": "https://www.mazda.mx/static/manuals/2025/mazda3/2025_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M26",
+          "url": "https://www.mazda.mx/static/manuals/2026/mazda3/2026_mazda3_web_om_sp.pdf"
+        }
+      ],
+      "observaciones": [
+        {
+          "base": "manuales México",
+          "intervalo_km": 10000,
+          "intervalo_meses": 6
+        },
+        {
+          "base": "web comercial vigente",
+          "intervalo_km": 10000,
+          "intervalo_meses": 12
+        }
+      ],
+      "pendiente": "Agencia: programa aplicable por VIN, año, régimen y fecha; confirmar si existe actualización que sustituye manual.",
+      "impacto": "No habilitar automáticamente intervalos temporales derivados de S1/S2/S4."
+    },
+    {
+      "id": "C02",
+      "asunto": "Filtro de cabina: traducción y programa comercial",
+      "fuente": [
+        {
+          "id": "M26",
+          "url": "https://www.mazda.mx/static/manuals/2026/mazda3/2026_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M26EN",
+          "url": "https://www.mazdausa.com/static/manuals/2026/mazda3/contents/69030900.html"
+        },
+        {
+          "id": "M22",
+          "url": "https://www.mazdausa.com/static/manuals/2022/mazda3/contents/07020603.html"
+        },
+        {
+          "id": "MXWEB",
+          "url": "https://www.mazda.mx/servicio-mazda/mantenimiento-mazda/mantenimiento"
+        }
+      ],
+      "pendiente": "Confirmar que segundo 'filtro de aire' es habitáculo y conciliar 40,000 km/24 meses del manual con paquetes web cada dos servicios."
+    },
+    {
+      "id": "C03",
+      "asunto": "Margen de garantía no equivale a tolerancia sin riesgo",
+      "fuente": [
+        {
+          "id": "MXWEB",
+          "url": "https://www.mazda.mx/servicio-mazda/mantenimiento-mazda/mantenimiento"
+        }
+      ],
+      "dato_publicado": {
+        "margen_km": 1000,
+        "margen_meses": 1,
+        "contexto": "Garantía, positivo/negativo",
+        "margen_dias": null
+      },
+      "pendiente": "Validar margen técnico por servicio y régimen. Un mes calendario no se convierte automáticamente a 30 días."
+    }
+  ],
+  "pendientes_agencia": [
+    "Confirmación escrita de C01-C03; perfil normal/severo por operación real de Yokohama.",
+    "VIN, versión/motor, transmisión, tracción, fecha de puesta en servicio, historial y campañas abiertas/cerradas por unidad.",
+    "Manual español 2022 y cobertura de ediciones especiales o cambios a mitad de año; no sustituir por ficha técnica.",
+    "Tolerancias técnicas, posibilidad de adelanto y duración/cola/refacciones para cada operación; no garantizar riesgo cero.",
+    "Espesores límite de balatas/discos, neumáticos admitidos por VIN y condiciones de retiro Yokohama.",
+    "Protocolos de batería 12 V/MHEV, transmisión AT/MT, AWD y distribución por VIN.",
+    "Aplicabilidad local de SSPD5, SSPD8 y 25V357; lista oficial actualizada de campañas 2021-2026 por VIN.",
+    "Tasas de falla por km/tiempo y condiciones: no se encontró una distribución validada para Mazda3 México.",
+    "Tiempo real fuera de servicio por visita; 45/90 minutos de una oferta u operación no equivalen a disponibilidad total."
+  ],
+  "fuentes": [
+    {
+      "id": "M21",
+      "url": "https://www.mazda.mx/static/manuals/2021/2021_mazda3_web_om_sp/contents/07020603.html",
+      "titulo": "Manual Mazda3 2021, programa México",
+      "localizador": "Programa de mantenimiento (México), tablas normal y severa",
+      "acceso": "HTML leído mediante HTTP; el lector web no pudo abrirlo",
+      "fecha_consulta": "2026-09-19"
+    },
+    {
+      "id": "M22",
+      "url": "https://www.mazdausa.com/static/manuals/2022/mazda3/contents/07020603.html",
+      "titulo": "Manual Mazda3 2022, sección explícita México",
+      "localizador": "Scheduled Maintenance (Mexico)",
+      "acceso": "HTML; no se usaron las tablas EE.UU./Canadá",
+      "nota": "El enlace 2022 de mazda.mx dirige a una ficha técnica; confirmar edición española con agencia",
+      "fecha_consulta": "2026-09-19"
+    },
+    {
+      "id": "M23",
+      "url": "https://www.mazda.mx/static/manuals/2023/mazda3/2023_mazda3_web_om_sp.pdf",
+      "titulo": "Manual Mazda3 2023 español, programa México",
+      "localizador": "6-9 a 6-11; PDF 501-503",
+      "sha256": "49efc0d58f433fc3312a532250254b4bd5f7be73e46ff071596025efb4a9df33",
+      "acceso": "PDF descargado; tablas y notas extraídas; revisión visual de tablas seleccionadas",
+      "fecha_consulta": "2026-09-19"
+    },
+    {
+      "id": "M24",
+      "url": "https://www.mazda.mx/static/manuals/2024/mazda3/2024_mazda3_web_om_sp.pdf",
+      "titulo": "Manual Mazda3 2024 español, programa México",
+      "localizador": "9-9 a 9-11; PDF 527-529",
+      "sha256": "9048dbae4e400e9b067c9bf1812754258f9638481f31f1eeab35747725c7ac1f",
+      "acceso": "PDF descargado; tablas y notas extraídas; revisión visual de tablas seleccionadas",
+      "fecha_consulta": "2026-09-19"
+    },
+    {
+      "id": "M25",
+      "url": "https://www.mazda.mx/static/manuals/2025/mazda3/2025_mazda3_web_om_sp.pdf",
+      "titulo": "Manual Mazda3 2025 español, programa México",
+      "localizador": "9-9 a 9-11; PDF 539-541",
+      "sha256": "0e6b9a13ba2f99b3244d9197c46bc10a5bd989361cb4b42f6db87a93419b1a64",
+      "acceso": "PDF descargado; tablas y notas extraídas; revisión visual de tablas seleccionadas",
+      "fecha_consulta": "2026-09-19"
+    },
+    {
+      "id": "M26",
+      "url": "https://www.mazda.mx/static/manuals/2026/mazda3/2026_mazda3_web_om_sp.pdf",
+      "titulo": "Manual Mazda3 2026 español, programa México",
+      "localizador": "9-9 a 9-11; PDF 539-541",
+      "sha256": "aecddf06620881e8d6660ef2bf2bbf36ce393d7285f16f746ebe5dafd0404a7f",
+      "acceso": "PDF descargado; tablas y notas extraídas; revisión visual de tablas seleccionadas",
+      "fecha_consulta": "2026-09-19"
+    },
+    {
+      "id": "M26EN",
+      "url": "https://www.mazdausa.com/static/manuals/2026/mazda3/contents/69030900.html",
+      "titulo": "Manual 2026 inglés, corroboración de sección México",
+      "localizador": "Mexico Residents; distingue Air filter de Cabin air filter",
+      "fecha_consulta": "2026-09-19"
+    },
+    {
+      "id": "MXWEB",
+      "url": "https://www.mazda.mx/servicio-mazda/mantenimiento-mazda/mantenimiento",
+      "titulo": "Programa comercial vigente Mazda México",
+      "localizador": "Servicios de mantenimiento programado y tabla S1-S12",
+      "fecha_consulta": "2026-09-19"
+    },
+    {
+      "id": "MXEXPRESS",
+      "url": "https://www.mazda.mx/servicio-mazda/servicios-exclusivos/servicio-express",
+      "titulo": "Servicio Express Mazda México",
+      "localizador": "Servicio programado hasta 120,000 km; oferta de 45 minutos, sujeta a condiciones",
+      "fecha_consulta": "2026-09-19"
+    },
+    {
+      "id": "MXVIN",
+      "url": "https://www.mazda.mx/servicio-mazda/agenda-tu-cita/llamado-a-revision",
+      "titulo": "Consulta de llamado a revisión Mazda México",
+      "localizador": "Consulta por VIN; no se envió información personal",
+      "fecha_consulta": "2026-09-19"
+    },
+    {
+      "id": "MXR21",
+      "url": "https://alertas.gob.mx/detallealerta.php?alerta=642&site=RAR",
+      "titulo": "Profeco/RAR: válvulas de neumático Mazda3 2021",
+      "fecha_documento": "2021-05-04",
+      "localizador": "Descripción, remedio y duración; alerta rápida 33/2021",
+      "fecha_consulta": "2026-09-19"
+    },
+    {
+      "id": "USOIL",
+      "url": "https://static.nhtsa.gov/odi/tsbs/2024/MC-11003694-0001.pdf",
+      "titulo": "Mazda SSPD5: sellos de válvula, consumo de aceite",
+      "fecha_documento": "2024-06-12",
+      "localizador": "Páginas 1-3; programa estadounidense, no recall mexicano",
+      "fecha_consulta": "2026-09-19"
+    },
+    {
+      "id": "USCCV",
+      "url": "https://static.nhtsa.gov/odi/tsbs/2025/MC-11016300-0001.pdf",
+      "titulo": "Mazda SSPD8: termostato de válvula de control de refrigerante",
+      "fecha_documento": "2025-03-10",
+      "localizador": "Páginas 1-3; extensión de garantía EE.UU.; P0126:00",
+      "fecha_consulta": "2026-09-19"
+    },
+    {
+      "id": "USAIRBAG",
+      "url": "https://static.nhtsa.gov/odi/rcl/2025/RCAK-25V357-5527.pdf",
+      "titulo": "NHTSA 25V357 / Mazda 7525E: sensor SAS",
+      "fecha_documento": "2025-06-05",
+      "localizador": "Mazda3 2024-2025; recall de EE.UU.",
+      "fecha_consulta": "2026-09-19"
+    },
+    {
+      "id": "USAIRBAG573",
+      "url": "https://static.nhtsa.gov/odi/rcl/2025/RCLRPT-25V357-7814.pdf?pubDate=20250607",
+      "titulo": "Informe del fabricante, recall 25V357",
+      "fecha_documento": "2025-05-29",
+      "localizador": "Página 1; fabricación no equivale a mercado de venta",
+      "fecha_consulta": "2026-09-19"
+    },
+    {
+      "id": "USEXCL",
+      "url": "https://static.nhtsa.gov/odi/rcl/2023/RCLRPT-23V487-3106.PDF",
+      "titulo": "Recall 23V487 cámara trasera",
+      "localizador": "Excluido: Mazda3 2014-2018, fuera del alcance",
+      "fecha_consulta": "2026-09-19"
+    }
+  ],
+  "servicios": [
+    {
+      "id": "aceite_normal",
+      "servicio": "Aceite de motor y filtro, uso normal",
+      "accion": "reemplazo",
+      "intervalo_km": 10000,
+      "intervalo_meses": 6,
+      "tolerancia_km": null,
+      "tolerancia_dias": null,
+      "severidad": "importante",
+      "consecuencia_de_retraso": "Degradación de lubricación y posible desgaste del motor.",
+      "duracion_estimada_taller_horas": null,
+      "fuente": [
+        {
+          "id": "M21",
+          "url": "https://www.mazda.mx/static/manuals/2021/2021_mazda3_web_om_sp/contents/07020603.html"
+        },
+        {
+          "id": "M22",
+          "url": "https://www.mazdausa.com/static/manuals/2022/mazda3/contents/07020603.html"
+        },
+        {
+          "id": "M23",
+          "url": "https://www.mazda.mx/static/manuals/2023/mazda3/2023_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M24",
+          "url": "https://www.mazda.mx/static/manuals/2024/mazda3/2024_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M25",
+          "url": "https://www.mazda.mx/static/manuals/2025/mazda3/2025_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M26",
+          "url": "https://www.mazda.mx/static/manuals/2026/mazda3/2026_mazda3_web_om_sp.pdf"
+        }
+      ],
+      "confianza": "media",
+      "origen_intervalo": "oficial_fabricante",
+      "estado": "pendiente_aprobacion",
+      "habilitado_produccion": false,
+      "aplicabilidad": {
+        "mercado": "MX",
+        "anios_modelo": [
+          2021,
+          2022,
+          2023,
+          2024,
+          2025,
+          2026
+        ],
+        "carrocerias": [
+          "sedan",
+          "hatchback"
+        ],
+        "motores": [
+          "G25",
+          "G25T",
+          "G20MHEV"
+        ],
+        "restriccion": "Solo combinaciones existentes en variantes-mx.v0.1.0.json; confirmar VIN y edición"
+      },
+      "conflictos": [
+        "C01"
+      ],
+      "regimen": "normal",
+      "anticipar_por": "Indicación de mantenimiento/aceite del vehículo; no esperar al máximo si aparece antes.",
+      "nota": "Reiniciar datos de aceite al cambiarlo. Viscosidad y especificación por motor/VIN, no una receta única."
+    },
+    {
+      "id": "aceite_severo",
+      "servicio": "Aceite de motor y filtro, uso severo",
+      "accion": "reemplazo",
+      "intervalo_km": 5000,
+      "intervalo_meses": 3,
+      "tolerancia_km": null,
+      "tolerancia_dias": null,
+      "severidad": "importante",
+      "consecuencia_de_retraso": "Mayor exposición a lubricante degradado en operación severa.",
+      "duracion_estimada_taller_horas": null,
+      "fuente": [
+        {
+          "id": "M21",
+          "url": "https://www.mazda.mx/static/manuals/2021/2021_mazda3_web_om_sp/contents/07020603.html"
+        },
+        {
+          "id": "M22",
+          "url": "https://www.mazdausa.com/static/manuals/2022/mazda3/contents/07020603.html"
+        },
+        {
+          "id": "M23",
+          "url": "https://www.mazda.mx/static/manuals/2023/mazda3/2023_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M24",
+          "url": "https://www.mazda.mx/static/manuals/2024/mazda3/2024_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M25",
+          "url": "https://www.mazda.mx/static/manuals/2025/mazda3/2025_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M26",
+          "url": "https://www.mazda.mx/static/manuals/2026/mazda3/2026_mazda3_web_om_sp.pdf"
+        }
+      ],
+      "confianza": "alta",
+      "origen_intervalo": "oficial_fabricante",
+      "estado": "pendiente_aprobacion",
+      "habilitado_produccion": false,
+      "aplicabilidad": {
+        "mercado": "MX",
+        "anios_modelo": [
+          2021,
+          2022,
+          2023,
+          2024,
+          2025,
+          2026
+        ],
+        "carrocerias": [
+          "sedan",
+          "hatchback"
+        ],
+        "motores": [
+          "G25",
+          "G25T",
+          "G20MHEV"
+        ],
+        "restriccion": "Solo combinaciones existentes en variantes-mx.v0.1.0.json; confirmar VIN y edición"
+      },
+      "regimen": "severo",
+      "sustituye_regla": "aceite_normal",
+      "no_acumular_con": "aceite_normal",
+      "condiciones": [
+        "Ralentí prolongado o baja velocidad tipo taxi",
+        "Polvo",
+        "Trayectos cortos frecuentes o frío prolongado",
+        "Temperatura ambiental extrema",
+        "Uso montañoso continuo"
+      ],
+      "nota": "No reduce a la mitad los intervalos de otros componentes."
+    },
+    {
+      "id": "bujias_inspeccion",
+      "servicio": "Bujías: inspección",
+      "accion": "inspeccion",
+      "intervalo_km": 10000,
+      "intervalo_meses": 6,
+      "tolerancia_km": null,
+      "tolerancia_dias": null,
+      "severidad": "importante",
+      "consecuencia_de_retraso": "Una anomalía no detectada puede causar fallos de combustión.",
+      "duracion_estimada_taller_horas": null,
+      "fuente": [
+        {
+          "id": "M21",
+          "url": "https://www.mazda.mx/static/manuals/2021/2021_mazda3_web_om_sp/contents/07020603.html"
+        },
+        {
+          "id": "M22",
+          "url": "https://www.mazdausa.com/static/manuals/2022/mazda3/contents/07020603.html"
+        },
+        {
+          "id": "M23",
+          "url": "https://www.mazda.mx/static/manuals/2023/mazda3/2023_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M24",
+          "url": "https://www.mazda.mx/static/manuals/2024/mazda3/2024_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M25",
+          "url": "https://www.mazda.mx/static/manuals/2025/mazda3/2025_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M26",
+          "url": "https://www.mazda.mx/static/manuals/2026/mazda3/2026_mazda3_web_om_sp.pdf"
+        }
+      ],
+      "confianza": "media",
+      "origen_intervalo": "derivado_tabla_oficial",
+      "estado": "pendiente_aprobacion",
+      "habilitado_produccion": false,
+      "aplicabilidad": {
+        "mercado": "MX",
+        "anios_modelo": [
+          2021,
+          2022,
+          2023,
+          2024,
+          2025,
+          2026
+        ],
+        "carrocerias": [
+          "sedan",
+          "hatchback"
+        ],
+        "motores": [
+          "G25",
+          "G25T",
+          "G20MHEV"
+        ],
+        "restriccion": "Solo combinaciones existentes en variantes-mx.v0.1.0.json; confirmar VIN y edición"
+      },
+      "cada_n_servicios_programados": 1,
+      "nota_conversion": "Equivalencia nominal con base 10,000 km/6 meses del manual. Contar 1 servicios programados; un cambio de aceite intermedio no es otro servicio programado. No recalcular con 12 meses sin resolver conflicto C01.",
+      "conflictos": [
+        "C01"
+      ]
+    },
+    {
+      "id": "bujias_turbo",
+      "servicio": "Bujías 2.5 turbo",
+      "accion": "reemplazo",
+      "intervalo_km": 64000,
+      "intervalo_meses": null,
+      "tolerancia_km": null,
+      "tolerancia_dias": null,
+      "severidad": "importante",
+      "consecuencia_de_retraso": "Encendido deficiente, fallos de combustión y posible afectación al catalizador.",
+      "duracion_estimada_taller_horas": null,
+      "fuente": [
+        {
+          "id": "M21",
+          "url": "https://www.mazda.mx/static/manuals/2021/2021_mazda3_web_om_sp/contents/07020603.html"
+        },
+        {
+          "id": "M22",
+          "url": "https://www.mazdausa.com/static/manuals/2022/mazda3/contents/07020603.html"
+        },
+        {
+          "id": "M23",
+          "url": "https://www.mazda.mx/static/manuals/2023/mazda3/2023_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M24",
+          "url": "https://www.mazda.mx/static/manuals/2024/mazda3/2024_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M25",
+          "url": "https://www.mazda.mx/static/manuals/2025/mazda3/2025_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M26",
+          "url": "https://www.mazda.mx/static/manuals/2026/mazda3/2026_mazda3_web_om_sp.pdf"
+        }
+      ],
+      "confianza": "alta",
+      "origen_intervalo": "oficial_fabricante",
+      "estado": "pendiente_aprobacion",
+      "habilitado_produccion": false,
+      "aplicabilidad": {
+        "mercado": "MX",
+        "anios_modelo": [
+          2021,
+          2022,
+          2023,
+          2024,
+          2025,
+          2026
+        ],
+        "carrocerias": [
+          "sedan",
+          "hatchback"
+        ],
+        "motores": [
+          "G25",
+          "G25T",
+          "G20MHEV"
+        ],
+        "restriccion": "Solo combinaciones existentes en variantes-mx.v0.1.0.json; confirmar VIN y edición"
+      },
+      "motores_permitidos": [
+        "G25T"
+      ],
+      "nota_null_meses": "No se publicó límite temporal en la tabla consultada."
+    },
+    {
+      "id": "bujias_no_turbo",
+      "servicio": "Bujías 2.5 atmosférico / 2.0 MHEV",
+      "accion": "reemplazo",
+      "intervalo_km": 120000,
+      "intervalo_meses": null,
+      "tolerancia_km": null,
+      "tolerancia_dias": null,
+      "severidad": "importante",
+      "consecuencia_de_retraso": "Encendido deficiente y fallos de combustión.",
+      "duracion_estimada_taller_horas": null,
+      "fuente": [
+        {
+          "id": "M21",
+          "url": "https://www.mazda.mx/static/manuals/2021/2021_mazda3_web_om_sp/contents/07020603.html"
+        },
+        {
+          "id": "M22",
+          "url": "https://www.mazdausa.com/static/manuals/2022/mazda3/contents/07020603.html"
+        },
+        {
+          "id": "M23",
+          "url": "https://www.mazda.mx/static/manuals/2023/mazda3/2023_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M24",
+          "url": "https://www.mazda.mx/static/manuals/2024/mazda3/2024_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M25",
+          "url": "https://www.mazda.mx/static/manuals/2025/mazda3/2025_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M26",
+          "url": "https://www.mazda.mx/static/manuals/2026/mazda3/2026_mazda3_web_om_sp.pdf"
+        }
+      ],
+      "confianza": "alta",
+      "origen_intervalo": "oficial_fabricante",
+      "estado": "pendiente_aprobacion",
+      "habilitado_produccion": false,
+      "aplicabilidad": {
+        "mercado": "MX",
+        "anios_modelo": [
+          2021,
+          2022,
+          2023,
+          2024,
+          2025,
+          2026
+        ],
+        "carrocerias": [
+          "sedan",
+          "hatchback"
+        ],
+        "motores": [
+          "G25",
+          "G25T",
+          "G20MHEV"
+        ],
+        "restriccion": "Solo combinaciones existentes en variantes-mx.v0.1.0.json; confirmar VIN y edición"
+      },
+      "motores_permitidos": [
+        "G25",
+        "G20MHEV"
+      ],
+      "nota": "2021-2023: excepto 2.5T; 2024-2026: G2.5 y e-SKYACTIV G. Confirmar referencia de bujía por VIN."
+    },
+    {
+      "id": "filtro_motor",
+      "servicio": "Filtro de aire del motor",
+      "accion": "reemplazo",
+      "intervalo_km": 20000,
+      "intervalo_meses": 12,
+      "tolerancia_km": null,
+      "tolerancia_dias": null,
+      "severidad": "importante",
+      "consecuencia_de_retraso": "Restricción de admisión y menor rendimiento.",
+      "duracion_estimada_taller_horas": null,
+      "fuente": [
+        {
+          "id": "M21",
+          "url": "https://www.mazda.mx/static/manuals/2021/2021_mazda3_web_om_sp/contents/07020603.html"
+        },
+        {
+          "id": "M22",
+          "url": "https://www.mazdausa.com/static/manuals/2022/mazda3/contents/07020603.html"
+        },
+        {
+          "id": "M23",
+          "url": "https://www.mazda.mx/static/manuals/2023/mazda3/2023_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M24",
+          "url": "https://www.mazda.mx/static/manuals/2024/mazda3/2024_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M25",
+          "url": "https://www.mazda.mx/static/manuals/2025/mazda3/2025_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M26",
+          "url": "https://www.mazda.mx/static/manuals/2026/mazda3/2026_mazda3_web_om_sp.pdf"
+        }
+      ],
+      "confianza": "media",
+      "origen_intervalo": "derivado_tabla_oficial",
+      "estado": "pendiente_aprobacion",
+      "habilitado_produccion": false,
+      "aplicabilidad": {
+        "mercado": "MX",
+        "anios_modelo": [
+          2021,
+          2022,
+          2023,
+          2024,
+          2025,
+          2026
+        ],
+        "carrocerias": [
+          "sedan",
+          "hatchback"
+        ],
+        "motores": [
+          "G25",
+          "G25T",
+          "G20MHEV"
+        ],
+        "restriccion": "Solo combinaciones existentes en variantes-mx.v0.1.0.json; confirmar VIN y edición"
+      },
+      "cada_n_servicios_programados": 2,
+      "nota_conversion": "Equivalencia nominal con base 10,000 km/6 meses del manual. Contar 2 servicios programados; un cambio de aceite intermedio no es otro servicio programado. No recalcular con 12 meses sin resolver conflicto C01.",
+      "conflictos": [
+        "C01"
+      ]
+    },
+    {
+      "id": "filtro_cabina",
+      "servicio": "Filtro de habitáculo",
+      "accion": "reemplazo",
+      "intervalo_km": 40000,
+      "intervalo_meses": 24,
+      "tolerancia_km": null,
+      "tolerancia_dias": null,
+      "severidad": "menor",
+      "consecuencia_de_retraso": "Menor caudal y calidad de aire; subir prioridad si compromete desempañado.",
+      "duracion_estimada_taller_horas": null,
+      "fuente": [
+        {
+          "id": "M22",
+          "url": "https://www.mazdausa.com/static/manuals/2022/mazda3/contents/07020603.html"
+        },
+        {
+          "id": "M26EN",
+          "url": "https://www.mazdausa.com/static/manuals/2026/mazda3/contents/69030900.html"
+        },
+        {
+          "id": "M26",
+          "url": "https://www.mazda.mx/static/manuals/2026/mazda3/2026_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "MXWEB",
+          "url": "https://www.mazda.mx/servicio-mazda/mantenimiento-mazda/mantenimiento"
+        }
+      ],
+      "confianza": "media",
+      "origen_intervalo": "oficial_fabricante",
+      "estado": "pendiente_aprobacion",
+      "habilitado_produccion": false,
+      "aplicabilidad": {
+        "mercado": "MX",
+        "anios_modelo": [
+          2021,
+          2022,
+          2023,
+          2024,
+          2025,
+          2026
+        ],
+        "carrocerias": [
+          "sedan",
+          "hatchback"
+        ],
+        "motores": [
+          "G25",
+          "G25T",
+          "G20MHEV"
+        ],
+        "restriccion": "Solo combinaciones existentes en variantes-mx.v0.1.0.json; confirmar VIN y edición"
+      },
+      "conflictos": [
+        "C02"
+      ],
+      "nota": "El español repite 'filtro de aire'. La sección México en inglés identifica este renglón como cabina. La web comercial lo incluye en S2/S6/S10 y S4/S8/S12; validar diferencia."
+    },
+    {
+      "id": "filtro_combustible",
+      "servicio": "Filtro de combustible",
+      "accion": "reemplazo",
+      "intervalo_km": 60000,
+      "intervalo_meses": null,
+      "tolerancia_km": null,
+      "tolerancia_dias": null,
+      "severidad": "importante",
+      "consecuencia_de_retraso": "Posible restricción de alimentación de combustible.",
+      "duracion_estimada_taller_horas": null,
+      "fuente": [
+        {
+          "id": "M21",
+          "url": "https://www.mazda.mx/static/manuals/2021/2021_mazda3_web_om_sp/contents/07020603.html"
+        },
+        {
+          "id": "M22",
+          "url": "https://www.mazdausa.com/static/manuals/2022/mazda3/contents/07020603.html"
+        },
+        {
+          "id": "M23",
+          "url": "https://www.mazda.mx/static/manuals/2023/mazda3/2023_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M24",
+          "url": "https://www.mazda.mx/static/manuals/2024/mazda3/2024_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M25",
+          "url": "https://www.mazda.mx/static/manuals/2025/mazda3/2025_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M26",
+          "url": "https://www.mazda.mx/static/manuals/2026/mazda3/2026_mazda3_web_om_sp.pdf"
+        }
+      ],
+      "confianza": "alta",
+      "origen_intervalo": "oficial_fabricante",
+      "estado": "pendiente_aprobacion",
+      "habilitado_produccion": false,
+      "aplicabilidad": {
+        "mercado": "MX",
+        "anios_modelo": [
+          2021,
+          2022,
+          2023,
+          2024,
+          2025,
+          2026
+        ],
+        "carrocerias": [
+          "sedan",
+          "hatchback"
+        ],
+        "motores": [
+          "G25",
+          "G25T",
+          "G20MHEV"
+        ],
+        "restriccion": "Solo combinaciones existentes en variantes-mx.v0.1.0.json; confirmar VIN y edición"
+      },
+      "nota": "Intervalo explícito de la tabla México; confirmar pieza/operación y accesibilidad por VIN."
+    },
+    {
+      "id": "correas_accesorios",
+      "servicio": "Correas de accesorios",
+      "accion": "inspeccion",
+      "intervalo_km": 10000,
+      "intervalo_meses": 6,
+      "tolerancia_km": null,
+      "tolerancia_dias": null,
+      "severidad": "importante",
+      "consecuencia_de_retraso": "Rotura o funcionamiento deficiente de accesorios; no confundir con distribución.",
+      "duracion_estimada_taller_horas": null,
+      "fuente": [
+        {
+          "id": "M21",
+          "url": "https://www.mazda.mx/static/manuals/2021/2021_mazda3_web_om_sp/contents/07020603.html"
+        },
+        {
+          "id": "M22",
+          "url": "https://www.mazdausa.com/static/manuals/2022/mazda3/contents/07020603.html"
+        },
+        {
+          "id": "M23",
+          "url": "https://www.mazda.mx/static/manuals/2023/mazda3/2023_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M24",
+          "url": "https://www.mazda.mx/static/manuals/2024/mazda3/2024_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M25",
+          "url": "https://www.mazda.mx/static/manuals/2025/mazda3/2025_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M26",
+          "url": "https://www.mazda.mx/static/manuals/2026/mazda3/2026_mazda3_web_om_sp.pdf"
+        }
+      ],
+      "confianza": "media",
+      "origen_intervalo": "derivado_tabla_oficial",
+      "estado": "pendiente_aprobacion",
+      "habilitado_produccion": false,
+      "aplicabilidad": {
+        "mercado": "MX",
+        "anios_modelo": [
+          2021,
+          2022,
+          2023,
+          2024,
+          2025,
+          2026
+        ],
+        "carrocerias": [
+          "sedan",
+          "hatchback"
+        ],
+        "motores": [
+          "G25",
+          "G25T",
+          "G20MHEV"
+        ],
+        "restriccion": "Solo combinaciones existentes en variantes-mx.v0.1.0.json; confirmar VIN y edición"
+      },
+      "cada_n_servicios_programados": 1,
+      "nota_conversion": "Equivalencia nominal con base 10,000 km/6 meses del manual. Contar 1 servicios programados; un cambio de aceite intermedio no es otro servicio programado. No recalcular con 12 meses sin resolver conflicto C01.",
+      "conflictos": [
+        "C01"
+      ]
+    },
+    {
+      "id": "nivel_refrigerante",
+      "servicio": "Nivel de refrigerante",
+      "accion": "inspeccion",
+      "intervalo_km": 10000,
+      "intervalo_meses": 6,
+      "tolerancia_km": null,
+      "tolerancia_dias": null,
+      "severidad": "importante",
+      "consecuencia_de_retraso": "Una pérdida no atendida puede causar sobrecalentamiento.",
+      "duracion_estimada_taller_horas": null,
+      "fuente": [
+        {
+          "id": "M21",
+          "url": "https://www.mazda.mx/static/manuals/2021/2021_mazda3_web_om_sp/contents/07020603.html"
+        },
+        {
+          "id": "M22",
+          "url": "https://www.mazdausa.com/static/manuals/2022/mazda3/contents/07020603.html"
+        },
+        {
+          "id": "M23",
+          "url": "https://www.mazda.mx/static/manuals/2023/mazda3/2023_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M24",
+          "url": "https://www.mazda.mx/static/manuals/2024/mazda3/2024_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M25",
+          "url": "https://www.mazda.mx/static/manuals/2025/mazda3/2025_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M26",
+          "url": "https://www.mazda.mx/static/manuals/2026/mazda3/2026_mazda3_web_om_sp.pdf"
+        }
+      ],
+      "confianza": "media",
+      "origen_intervalo": "derivado_tabla_oficial",
+      "estado": "pendiente_aprobacion",
+      "habilitado_produccion": false,
+      "aplicabilidad": {
+        "mercado": "MX",
+        "anios_modelo": [
+          2021,
+          2022,
+          2023,
+          2024,
+          2025,
+          2026
+        ],
+        "carrocerias": [
+          "sedan",
+          "hatchback"
+        ],
+        "motores": [
+          "G25",
+          "G25T",
+          "G20MHEV"
+        ],
+        "restriccion": "Solo combinaciones existentes en variantes-mx.v0.1.0.json; confirmar VIN y edición"
+      },
+      "cada_n_servicios_programados": 1,
+      "nota_conversion": "Equivalencia nominal con base 10,000 km/6 meses del manual. Contar 1 servicios programados; un cambio de aceite intermedio no es otro servicio programado. No recalcular con 12 meses sin resolver conflicto C01.",
+      "conflictos": [
+        "C01"
+      ]
+    },
+    {
+      "id": "refrigerante_inicial",
+      "servicio": "Refrigerante: primer cambio",
+      "accion": "reemplazo",
+      "intervalo_km": 192000,
+      "intervalo_meses": 120,
+      "tolerancia_km": null,
+      "tolerancia_dias": null,
+      "severidad": "importante",
+      "consecuencia_de_retraso": "Menor protección térmica y contra corrosión.",
+      "duracion_estimada_taller_horas": null,
+      "fuente": [
+        {
+          "id": "M21",
+          "url": "https://www.mazda.mx/static/manuals/2021/2021_mazda3_web_om_sp/contents/07020603.html"
+        },
+        {
+          "id": "M22",
+          "url": "https://www.mazdausa.com/static/manuals/2022/mazda3/contents/07020603.html"
+        },
+        {
+          "id": "M23",
+          "url": "https://www.mazda.mx/static/manuals/2023/mazda3/2023_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M24",
+          "url": "https://www.mazda.mx/static/manuals/2024/mazda3/2024_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M25",
+          "url": "https://www.mazda.mx/static/manuals/2025/mazda3/2025_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M26",
+          "url": "https://www.mazda.mx/static/manuals/2026/mazda3/2026_mazda3_web_om_sp.pdf"
+        }
+      ],
+      "confianza": "alta",
+      "origen_intervalo": "oficial_fabricante",
+      "estado": "pendiente_aprobacion",
+      "habilitado_produccion": false,
+      "aplicabilidad": {
+        "mercado": "MX",
+        "anios_modelo": [
+          2021,
+          2022,
+          2023,
+          2024,
+          2025,
+          2026
+        ],
+        "carrocerias": [
+          "sedan",
+          "hatchback"
+        ],
+        "motores": [
+          "G25",
+          "G25T",
+          "G20MHEV"
+        ],
+        "restriccion": "Solo combinaciones existentes en variantes-mx.v0.1.0.json; confirmar VIN y edición"
+      },
+      "fase": "inicial",
+      "ancla": "Puesta en servicio y odómetro inicial; no desde el último servicio general.",
+      "despues_aplicar": "refrigerante_sucesivo",
+      "nota": "FL-22 recomendado; si historial o fluido son desconocidos, diagnóstico, no asumir vida restante."
+    },
+    {
+      "id": "refrigerante_sucesivo",
+      "servicio": "Refrigerante: cambios posteriores",
+      "accion": "reemplazo",
+      "intervalo_km": 96000,
+      "intervalo_meses": 60,
+      "tolerancia_km": null,
+      "tolerancia_dias": null,
+      "severidad": "importante",
+      "consecuencia_de_retraso": "Menor protección térmica y contra corrosión.",
+      "duracion_estimada_taller_horas": null,
+      "fuente": [
+        {
+          "id": "M21",
+          "url": "https://www.mazda.mx/static/manuals/2021/2021_mazda3_web_om_sp/contents/07020603.html"
+        },
+        {
+          "id": "M22",
+          "url": "https://www.mazdausa.com/static/manuals/2022/mazda3/contents/07020603.html"
+        },
+        {
+          "id": "M23",
+          "url": "https://www.mazda.mx/static/manuals/2023/mazda3/2023_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M24",
+          "url": "https://www.mazda.mx/static/manuals/2024/mazda3/2024_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M25",
+          "url": "https://www.mazda.mx/static/manuals/2025/mazda3/2025_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M26",
+          "url": "https://www.mazda.mx/static/manuals/2026/mazda3/2026_mazda3_web_om_sp.pdf"
+        }
+      ],
+      "confianza": "alta",
+      "origen_intervalo": "oficial_fabricante",
+      "estado": "pendiente_aprobacion",
+      "habilitado_produccion": false,
+      "aplicabilidad": {
+        "mercado": "MX",
+        "anios_modelo": [
+          2021,
+          2022,
+          2023,
+          2024,
+          2025,
+          2026
+        ],
+        "carrocerias": [
+          "sedan",
+          "hatchback"
+        ],
+        "motores": [
+          "G25",
+          "G25T",
+          "G20MHEV"
+        ],
+        "restriccion": "Solo combinaciones existentes en variantes-mx.v0.1.0.json; confirmar VIN y edición"
+      },
+      "fase": "sucesiva",
+      "requiere_historial": "Cambio previo de refrigerante documentado; no coexistir con regla inicial.",
+      "ancla": "Último cambio documentado de refrigerante."
+    },
+    {
+      "id": "lineas_combustible",
+      "servicio": "Líneas y mangueras de combustible",
+      "accion": "inspeccion",
+      "intervalo_km": 40000,
+      "intervalo_meses": 24,
+      "tolerancia_km": null,
+      "tolerancia_dias": null,
+      "severidad": "importante",
+      "consecuencia_de_retraso": "Fugas no detectadas pueden provocar incendio.",
+      "duracion_estimada_taller_horas": null,
+      "fuente": [
+        {
+          "id": "M21",
+          "url": "https://www.mazda.mx/static/manuals/2021/2021_mazda3_web_om_sp/contents/07020603.html"
+        },
+        {
+          "id": "M22",
+          "url": "https://www.mazdausa.com/static/manuals/2022/mazda3/contents/07020603.html"
+        },
+        {
+          "id": "M23",
+          "url": "https://www.mazda.mx/static/manuals/2023/mazda3/2023_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M24",
+          "url": "https://www.mazda.mx/static/manuals/2024/mazda3/2024_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M25",
+          "url": "https://www.mazda.mx/static/manuals/2025/mazda3/2025_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M26",
+          "url": "https://www.mazda.mx/static/manuals/2026/mazda3/2026_mazda3_web_om_sp.pdf"
+        }
+      ],
+      "confianza": "media",
+      "origen_intervalo": "derivado_tabla_oficial",
+      "estado": "pendiente_aprobacion",
+      "habilitado_produccion": false,
+      "aplicabilidad": {
+        "mercado": "MX",
+        "anios_modelo": [
+          2021,
+          2022,
+          2023,
+          2024,
+          2025,
+          2026
+        ],
+        "carrocerias": [
+          "sedan",
+          "hatchback"
+        ],
+        "motores": [
+          "G25",
+          "G25T",
+          "G20MHEV"
+        ],
+        "restriccion": "Solo combinaciones existentes en variantes-mx.v0.1.0.json; confirmar VIN y edición"
+      },
+      "cada_n_servicios_programados": 4,
+      "nota_conversion": "Equivalencia nominal con base 10,000 km/6 meses del manual. Contar 4 servicios programados; un cambio de aceite intermedio no es otro servicio programado. No recalcular con 12 meses sin resolver conflicto C01.",
+      "conflictos": [
+        "C01"
+      ],
+      "escalar_a_critico_si": "Fuga u olor a combustible confirmado."
+    },
+    {
+      "id": "emisiones",
+      "servicio": "Mangueras y tuberías de emisiones",
+      "accion": "inspeccion",
+      "intervalo_km": 40000,
+      "intervalo_meses": 24,
+      "tolerancia_km": null,
+      "tolerancia_dias": null,
+      "severidad": "importante",
+      "consecuencia_de_retraso": "Fugas y funcionamiento irregular del motor.",
+      "duracion_estimada_taller_horas": null,
+      "fuente": [
+        {
+          "id": "M21",
+          "url": "https://www.mazda.mx/static/manuals/2021/2021_mazda3_web_om_sp/contents/07020603.html"
+        },
+        {
+          "id": "M22",
+          "url": "https://www.mazdausa.com/static/manuals/2022/mazda3/contents/07020603.html"
+        },
+        {
+          "id": "M23",
+          "url": "https://www.mazda.mx/static/manuals/2023/mazda3/2023_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M24",
+          "url": "https://www.mazda.mx/static/manuals/2024/mazda3/2024_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M25",
+          "url": "https://www.mazda.mx/static/manuals/2025/mazda3/2025_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M26",
+          "url": "https://www.mazda.mx/static/manuals/2026/mazda3/2026_mazda3_web_om_sp.pdf"
+        }
+      ],
+      "confianza": "media",
+      "origen_intervalo": "derivado_tabla_oficial",
+      "estado": "pendiente_aprobacion",
+      "habilitado_produccion": false,
+      "aplicabilidad": {
+        "mercado": "MX",
+        "anios_modelo": [
+          2021,
+          2022,
+          2023,
+          2024,
+          2025,
+          2026
+        ],
+        "carrocerias": [
+          "sedan",
+          "hatchback"
+        ],
+        "motores": [
+          "G25",
+          "G25T",
+          "G20MHEV"
+        ],
+        "restriccion": "Solo combinaciones existentes en variantes-mx.v0.1.0.json; confirmar VIN y edición"
+      },
+      "cada_n_servicios_programados": 4,
+      "nota_conversion": "Equivalencia nominal con base 10,000 km/6 meses del manual. Contar 4 servicios programados; un cambio de aceite intermedio no es otro servicio programado. No recalcular con 12 meses sin resolver conflicto C01.",
+      "conflictos": [
+        "C01"
+      ]
+    },
+    {
+      "id": "lineas_freno",
+      "servicio": "Líneas, mangueras y conexiones de freno",
+      "accion": "inspeccion",
+      "intervalo_km": 20000,
+      "intervalo_meses": 12,
+      "tolerancia_km": null,
+      "tolerancia_dias": null,
+      "severidad": "importante",
+      "consecuencia_de_retraso": "Fugas o deterioro pueden reducir la capacidad de frenado.",
+      "duracion_estimada_taller_horas": null,
+      "fuente": [
+        {
+          "id": "M21",
+          "url": "https://www.mazda.mx/static/manuals/2021/2021_mazda3_web_om_sp/contents/07020603.html"
+        },
+        {
+          "id": "M22",
+          "url": "https://www.mazdausa.com/static/manuals/2022/mazda3/contents/07020603.html"
+        },
+        {
+          "id": "M23",
+          "url": "https://www.mazda.mx/static/manuals/2023/mazda3/2023_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M24",
+          "url": "https://www.mazda.mx/static/manuals/2024/mazda3/2024_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M25",
+          "url": "https://www.mazda.mx/static/manuals/2025/mazda3/2025_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M26",
+          "url": "https://www.mazda.mx/static/manuals/2026/mazda3/2026_mazda3_web_om_sp.pdf"
+        }
+      ],
+      "confianza": "media",
+      "origen_intervalo": "derivado_tabla_oficial",
+      "estado": "pendiente_aprobacion",
+      "habilitado_produccion": false,
+      "aplicabilidad": {
+        "mercado": "MX",
+        "anios_modelo": [
+          2021,
+          2022,
+          2023,
+          2024,
+          2025,
+          2026
+        ],
+        "carrocerias": [
+          "sedan",
+          "hatchback"
+        ],
+        "motores": [
+          "G25",
+          "G25T",
+          "G20MHEV"
+        ],
+        "restriccion": "Solo combinaciones existentes en variantes-mx.v0.1.0.json; confirmar VIN y edición"
+      },
+      "cada_n_servicios_programados": 2,
+      "nota_conversion": "Equivalencia nominal con base 10,000 km/6 meses del manual. Contar 2 servicios programados; un cambio de aceite intermedio no es otro servicio programado. No recalcular con 12 meses sin resolver conflicto C01.",
+      "conflictos": [
+        "C01"
+      ],
+      "escalar_a_critico_si": "Fuga, pedal anormal o pérdida de capacidad de frenado."
+    },
+    {
+      "id": "servofreno",
+      "servicio": "Servofreno de vacío y manguera",
+      "accion": "inspeccion",
+      "intervalo_km": 20000,
+      "intervalo_meses": 12,
+      "tolerancia_km": null,
+      "tolerancia_dias": null,
+      "severidad": "importante",
+      "consecuencia_de_retraso": "Pérdida de asistencia de frenado.",
+      "duracion_estimada_taller_horas": null,
+      "fuente": [
+        {
+          "id": "M21",
+          "url": "https://www.mazda.mx/static/manuals/2021/2021_mazda3_web_om_sp/contents/07020603.html"
+        },
+        {
+          "id": "M22",
+          "url": "https://www.mazdausa.com/static/manuals/2022/mazda3/contents/07020603.html"
+        },
+        {
+          "id": "M23",
+          "url": "https://www.mazda.mx/static/manuals/2023/mazda3/2023_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M24",
+          "url": "https://www.mazda.mx/static/manuals/2024/mazda3/2024_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M25",
+          "url": "https://www.mazda.mx/static/manuals/2025/mazda3/2025_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M26",
+          "url": "https://www.mazda.mx/static/manuals/2026/mazda3/2026_mazda3_web_om_sp.pdf"
+        }
+      ],
+      "confianza": "media",
+      "origen_intervalo": "derivado_tabla_oficial",
+      "estado": "pendiente_aprobacion",
+      "habilitado_produccion": false,
+      "aplicabilidad": {
+        "mercado": "MX",
+        "anios_modelo": [
+          2021,
+          2022,
+          2023,
+          2024,
+          2025,
+          2026
+        ],
+        "carrocerias": [
+          "sedan",
+          "hatchback"
+        ],
+        "motores": [
+          "G25",
+          "G25T",
+          "G20MHEV"
+        ],
+        "restriccion": "Solo combinaciones existentes en variantes-mx.v0.1.0.json; confirmar VIN y edición"
+      },
+      "cada_n_servicios_programados": 2,
+      "nota_conversion": "Equivalencia nominal con base 10,000 km/6 meses del manual. Contar 2 servicios programados; un cambio de aceite intermedio no es otro servicio programado. No recalcular con 12 meses sin resolver conflicto C01.",
+      "conflictos": [
+        "C01"
+      ],
+      "condicion_aplicabilidad": "Solo vehículos equipados con servofreno de vacío; verificar VIN."
+    },
+    {
+      "id": "nivel_frenos_embrague",
+      "servicio": "Nivel de líquido de frenos y embrague",
+      "accion": "inspeccion",
+      "intervalo_km": 10000,
+      "intervalo_meses": 6,
+      "tolerancia_km": null,
+      "tolerancia_dias": null,
+      "severidad": "importante",
+      "consecuencia_de_retraso": "Un nivel anormal puede indicar fuga o desgaste.",
+      "duracion_estimada_taller_horas": null,
+      "fuente": [
+        {
+          "id": "M21",
+          "url": "https://www.mazda.mx/static/manuals/2021/2021_mazda3_web_om_sp/contents/07020603.html"
+        },
+        {
+          "id": "M22",
+          "url": "https://www.mazdausa.com/static/manuals/2022/mazda3/contents/07020603.html"
+        },
+        {
+          "id": "M23",
+          "url": "https://www.mazda.mx/static/manuals/2023/mazda3/2023_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M24",
+          "url": "https://www.mazda.mx/static/manuals/2024/mazda3/2024_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M25",
+          "url": "https://www.mazda.mx/static/manuals/2025/mazda3/2025_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M26",
+          "url": "https://www.mazda.mx/static/manuals/2026/mazda3/2026_mazda3_web_om_sp.pdf"
+        }
+      ],
+      "confianza": "media",
+      "origen_intervalo": "derivado_tabla_oficial",
+      "estado": "pendiente_aprobacion",
+      "habilitado_produccion": false,
+      "aplicabilidad": {
+        "mercado": "MX",
+        "anios_modelo": [
+          2021,
+          2022,
+          2023,
+          2024,
+          2025,
+          2026
+        ],
+        "carrocerias": [
+          "sedan",
+          "hatchback"
+        ],
+        "motores": [
+          "G25",
+          "G25T",
+          "G20MHEV"
+        ],
+        "restriccion": "Solo combinaciones existentes en variantes-mx.v0.1.0.json; confirmar VIN y edición"
+      },
+      "cada_n_servicios_programados": 1,
+      "nota_conversion": "Equivalencia nominal con base 10,000 km/6 meses del manual. Contar 1 servicios programados; un cambio de aceite intermedio no es otro servicio programado. No recalcular con 12 meses sin resolver conflicto C01.",
+      "conflictos": [
+        "C01"
+      ],
+      "nota": "Tabla: inspeccionar en S1/S2/S3/S5/S6/S7; en S4/S8 coincide cambio de líquido. Inspección no equivale a autorizar relleno sin diagnóstico."
+    },
+    {
+      "id": "liquido_frenos",
+      "servicio": "Líquido de frenos",
+      "accion": "reemplazo",
+      "intervalo_km": 40000,
+      "intervalo_meses": 24,
+      "tolerancia_km": null,
+      "tolerancia_dias": null,
+      "severidad": "importante",
+      "consecuencia_de_retraso": "Pérdida de desempeño del fluido bajo carga térmica.",
+      "duracion_estimada_taller_horas": null,
+      "fuente": [
+        {
+          "id": "M21",
+          "url": "https://www.mazda.mx/static/manuals/2021/2021_mazda3_web_om_sp/contents/07020603.html"
+        },
+        {
+          "id": "M22",
+          "url": "https://www.mazdausa.com/static/manuals/2022/mazda3/contents/07020603.html"
+        },
+        {
+          "id": "M23",
+          "url": "https://www.mazda.mx/static/manuals/2023/mazda3/2023_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M24",
+          "url": "https://www.mazda.mx/static/manuals/2024/mazda3/2024_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M25",
+          "url": "https://www.mazda.mx/static/manuals/2025/mazda3/2025_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M26",
+          "url": "https://www.mazda.mx/static/manuals/2026/mazda3/2026_mazda3_web_om_sp.pdf"
+        }
+      ],
+      "confianza": "media",
+      "origen_intervalo": "derivado_tabla_oficial",
+      "estado": "pendiente_aprobacion",
+      "habilitado_produccion": false,
+      "aplicabilidad": {
+        "mercado": "MX",
+        "anios_modelo": [
+          2021,
+          2022,
+          2023,
+          2024,
+          2025,
+          2026
+        ],
+        "carrocerias": [
+          "sedan",
+          "hatchback"
+        ],
+        "motores": [
+          "G25",
+          "G25T",
+          "G20MHEV"
+        ],
+        "restriccion": "Solo combinaciones existentes en variantes-mx.v0.1.0.json; confirmar VIN y edición"
+      },
+      "cada_n_servicios_programados": 4,
+      "nota_conversion": "Equivalencia nominal con base 10,000 km/6 meses del manual. Contar 4 servicios programados; un cambio de aceite intermedio no es otro servicio programado. No recalcular con 12 meses sin resolver conflicto C01.",
+      "conflictos": [
+        "C01"
+      ]
+    },
+    {
+      "id": "frenos_inspeccion",
+      "servicio": "Balatas y discos: inspección",
+      "accion": "inspeccion",
+      "intervalo_km": 10000,
+      "intervalo_meses": 6,
+      "tolerancia_km": null,
+      "tolerancia_dias": null,
+      "severidad": "importante",
+      "consecuencia_de_retraso": "Desgaste no detectado puede comprometer la frenada.",
+      "duracion_estimada_taller_horas": null,
+      "fuente": [
+        {
+          "id": "M21",
+          "url": "https://www.mazda.mx/static/manuals/2021/2021_mazda3_web_om_sp/contents/07020603.html"
+        },
+        {
+          "id": "M22",
+          "url": "https://www.mazdausa.com/static/manuals/2022/mazda3/contents/07020603.html"
+        },
+        {
+          "id": "M23",
+          "url": "https://www.mazda.mx/static/manuals/2023/mazda3/2023_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M24",
+          "url": "https://www.mazda.mx/static/manuals/2024/mazda3/2024_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M25",
+          "url": "https://www.mazda.mx/static/manuals/2025/mazda3/2025_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M26",
+          "url": "https://www.mazda.mx/static/manuals/2026/mazda3/2026_mazda3_web_om_sp.pdf"
+        }
+      ],
+      "confianza": "media",
+      "origen_intervalo": "derivado_tabla_oficial",
+      "estado": "pendiente_aprobacion",
+      "habilitado_produccion": false,
+      "aplicabilidad": {
+        "mercado": "MX",
+        "anios_modelo": [
+          2021,
+          2022,
+          2023,
+          2024,
+          2025,
+          2026
+        ],
+        "carrocerias": [
+          "sedan",
+          "hatchback"
+        ],
+        "motores": [
+          "G25",
+          "G25T",
+          "G20MHEV"
+        ],
+        "restriccion": "Solo combinaciones existentes en variantes-mx.v0.1.0.json; confirmar VIN y edición"
+      },
+      "cada_n_servicios_programados": 1,
+      "nota_conversion": "Equivalencia nominal con base 10,000 km/6 meses del manual. Contar 1 servicios programados; un cambio de aceite intermedio no es otro servicio programado. No recalcular con 12 meses sin resolver conflicto C01.",
+      "conflictos": [
+        "C01"
+      ],
+      "mediciones_requeridas": [
+        "Espesor de balata",
+        "Espesor/estado de disco",
+        "Límite de servicio de la pieza por VIN"
+      ],
+      "nota": "La tabla exige inspeccionar frenos de disco, no sustituir balatas cada 10,000 km."
+    },
+    {
+      "id": "balatas_cambio",
+      "servicio": "Balatas: sustitución por condición",
+      "accion": "reemplazo_por_condicion",
+      "intervalo_km": null,
+      "intervalo_meses": null,
+      "tolerancia_km": null,
+      "tolerancia_dias": null,
+      "severidad": "importante",
+      "consecuencia_de_retraso": "Pérdida de frenada y daño a discos si se agota el material.",
+      "duracion_estimada_taller_horas": null,
+      "fuente": [
+        {
+          "id": "M21",
+          "url": "https://www.mazda.mx/static/manuals/2021/2021_mazda3_web_om_sp/contents/07020603.html"
+        },
+        {
+          "id": "M22",
+          "url": "https://www.mazdausa.com/static/manuals/2022/mazda3/contents/07020603.html"
+        },
+        {
+          "id": "M23",
+          "url": "https://www.mazda.mx/static/manuals/2023/mazda3/2023_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M24",
+          "url": "https://www.mazda.mx/static/manuals/2024/mazda3/2024_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M25",
+          "url": "https://www.mazda.mx/static/manuals/2025/mazda3/2025_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M26",
+          "url": "https://www.mazda.mx/static/manuals/2026/mazda3/2026_mazda3_web_om_sp.pdf"
+        }
+      ],
+      "confianza": "baja",
+      "origen_intervalo": "sin_intervalo_fijo_en_fuentes_consultadas",
+      "estado": "pendiente_validacion_agencia",
+      "habilitado_produccion": false,
+      "aplicabilidad": {
+        "mercado": "MX",
+        "anios_modelo": [
+          2021,
+          2022,
+          2023,
+          2024,
+          2025,
+          2026
+        ],
+        "carrocerias": [
+          "sedan",
+          "hatchback"
+        ],
+        "motores": [
+          "G25",
+          "G25T",
+          "G20MHEV"
+        ],
+        "restriccion": "Solo combinaciones existentes en variantes-mx.v0.1.0.json; confirmar VIN y edición"
+      },
+      "criterio": "Espesor/daño/síntomas y límites Mazda por VIN.",
+      "escalar_a_critico_si": "Frenada deficiente o desgaste inseguro; no agrupar."
+    },
+    {
+      "id": "discos_cambio",
+      "servicio": "Discos: sustitución por condición",
+      "accion": "reemplazo_por_condicion",
+      "intervalo_km": null,
+      "intervalo_meses": null,
+      "tolerancia_km": null,
+      "tolerancia_dias": null,
+      "severidad": "importante",
+      "consecuencia_de_retraso": "Vibración o capacidad de frenado comprometida.",
+      "duracion_estimada_taller_horas": null,
+      "fuente": [
+        {
+          "id": "M21",
+          "url": "https://www.mazda.mx/static/manuals/2021/2021_mazda3_web_om_sp/contents/07020603.html"
+        },
+        {
+          "id": "M22",
+          "url": "https://www.mazdausa.com/static/manuals/2022/mazda3/contents/07020603.html"
+        },
+        {
+          "id": "M23",
+          "url": "https://www.mazda.mx/static/manuals/2023/mazda3/2023_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M24",
+          "url": "https://www.mazda.mx/static/manuals/2024/mazda3/2024_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M25",
+          "url": "https://www.mazda.mx/static/manuals/2025/mazda3/2025_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M26",
+          "url": "https://www.mazda.mx/static/manuals/2026/mazda3/2026_mazda3_web_om_sp.pdf"
+        }
+      ],
+      "confianza": "baja",
+      "origen_intervalo": "sin_intervalo_fijo_en_fuentes_consultadas",
+      "estado": "pendiente_validacion_agencia",
+      "habilitado_produccion": false,
+      "aplicabilidad": {
+        "mercado": "MX",
+        "anios_modelo": [
+          2021,
+          2022,
+          2023,
+          2024,
+          2025,
+          2026
+        ],
+        "carrocerias": [
+          "sedan",
+          "hatchback"
+        ],
+        "motores": [
+          "G25",
+          "G25T",
+          "G20MHEV"
+        ],
+        "restriccion": "Solo combinaciones existentes en variantes-mx.v0.1.0.json; confirmar VIN y edición"
+      },
+      "criterio": "Espesor mínimo, alabeo y daños según pieza/VIN; no inventar milímetros."
+    },
+    {
+      "id": "llantas_rotacion",
+      "servicio": "Rotación de llantas",
+      "accion": "rotacion",
+      "intervalo_km": 10000,
+      "intervalo_meses": null,
+      "tolerancia_km": null,
+      "tolerancia_dias": null,
+      "severidad": "menor",
+      "consecuencia_de_retraso": "Desgaste desigual y menor duración.",
+      "duracion_estimada_taller_horas": null,
+      "fuente": [
+        {
+          "id": "M21",
+          "url": "https://www.mazda.mx/static/manuals/2021/2021_mazda3_web_om_sp/contents/07020603.html"
+        },
+        {
+          "id": "M22",
+          "url": "https://www.mazdausa.com/static/manuals/2022/mazda3/contents/07020603.html"
+        },
+        {
+          "id": "M23",
+          "url": "https://www.mazda.mx/static/manuals/2023/mazda3/2023_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M24",
+          "url": "https://www.mazda.mx/static/manuals/2024/mazda3/2024_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M25",
+          "url": "https://www.mazda.mx/static/manuals/2025/mazda3/2025_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M26",
+          "url": "https://www.mazda.mx/static/manuals/2026/mazda3/2026_mazda3_web_om_sp.pdf"
+        }
+      ],
+      "confianza": "alta",
+      "origen_intervalo": "oficial_fabricante",
+      "estado": "pendiente_aprobacion",
+      "habilitado_produccion": false,
+      "aplicabilidad": {
+        "mercado": "MX",
+        "anios_modelo": [
+          2021,
+          2022,
+          2023,
+          2024,
+          2025,
+          2026
+        ],
+        "carrocerias": [
+          "sedan",
+          "hatchback"
+        ],
+        "motores": [
+          "G25",
+          "G25T",
+          "G20MHEV"
+        ],
+        "restriccion": "Solo combinaciones existentes en variantes-mx.v0.1.0.json; confirmar VIN y edición"
+      },
+      "nota": "Adelantar si hay desgaste irregular; no incluir refacción temporal. Si hay daño o presión insegura deja de ser menor."
+    },
+    {
+      "id": "llantas_inspeccion",
+      "servicio": "Llantas: presión y desgaste en servicio",
+      "accion": "inspeccion",
+      "intervalo_km": 10000,
+      "intervalo_meses": 6,
+      "tolerancia_km": null,
+      "tolerancia_dias": null,
+      "severidad": "importante",
+      "consecuencia_de_retraso": "Deterioro de agarre o pérdida de presión no detectados.",
+      "duracion_estimada_taller_horas": null,
+      "fuente": [
+        {
+          "id": "M21",
+          "url": "https://www.mazda.mx/static/manuals/2021/2021_mazda3_web_om_sp/contents/07020603.html"
+        },
+        {
+          "id": "M22",
+          "url": "https://www.mazdausa.com/static/manuals/2022/mazda3/contents/07020603.html"
+        },
+        {
+          "id": "M23",
+          "url": "https://www.mazda.mx/static/manuals/2023/mazda3/2023_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M24",
+          "url": "https://www.mazda.mx/static/manuals/2024/mazda3/2024_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M25",
+          "url": "https://www.mazda.mx/static/manuals/2025/mazda3/2025_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M26",
+          "url": "https://www.mazda.mx/static/manuals/2026/mazda3/2026_mazda3_web_om_sp.pdf"
+        }
+      ],
+      "confianza": "media",
+      "origen_intervalo": "derivado_tabla_oficial",
+      "estado": "pendiente_aprobacion",
+      "habilitado_produccion": false,
+      "aplicabilidad": {
+        "mercado": "MX",
+        "anios_modelo": [
+          2021,
+          2022,
+          2023,
+          2024,
+          2025,
+          2026
+        ],
+        "carrocerias": [
+          "sedan",
+          "hatchback"
+        ],
+        "motores": [
+          "G25",
+          "G25T",
+          "G20MHEV"
+        ],
+        "restriccion": "Solo combinaciones existentes en variantes-mx.v0.1.0.json; confirmar VIN y edición"
+      },
+      "cada_n_servicios_programados": 1,
+      "nota_conversion": "Equivalencia nominal con base 10,000 km/6 meses del manual. Contar 1 servicios programados; un cambio de aceite intermedio no es otro servicio programado. No recalcular con 12 meses sin resolver conflicto C01.",
+      "conflictos": [
+        "C01"
+      ]
+    },
+    {
+      "id": "llantas_presion",
+      "servicio": "Presión en frío, incluida refacción",
+      "accion": "inspeccion_operador",
+      "intervalo_km": null,
+      "intervalo_meses": 1,
+      "tolerancia_km": null,
+      "tolerancia_dias": null,
+      "severidad": "importante",
+      "consecuencia_de_retraso": "Circular con presión incorrecta compromete seguridad y desgaste.",
+      "duracion_estimada_taller_horas": null,
+      "fuente": [
+        {
+          "id": "M26",
+          "url": "https://www.mazda.mx/static/manuals/2026/mazda3/2026_mazda3_web_om_sp.pdf"
+        }
+      ],
+      "confianza": "alta",
+      "origen_intervalo": "oficial_fabricante",
+      "estado": "pendiente_aprobacion",
+      "habilitado_produccion": false,
+      "aplicabilidad": {
+        "mercado": "MX",
+        "anios_modelo": [
+          2021,
+          2022,
+          2023,
+          2024,
+          2025,
+          2026
+        ],
+        "carrocerias": [
+          "sedan",
+          "hatchback"
+        ],
+        "motores": [
+          "G25",
+          "G25T",
+          "G20MHEV"
+        ],
+        "restriccion": "Solo combinaciones existentes en variantes-mx.v0.1.0.json; confirmar VIN y edición"
+      },
+      "localizador": "9-39 a 9-40",
+      "anios_documentados": [
+        2026
+      ],
+      "nota": "Práctica propuesta para toda la flotilla; confirmar manual de cada unidad. Usar placa del vehículo, no presión máxima del costado del neumático."
+    },
+    {
+      "id": "llantas_cambio",
+      "servicio": "Llantas: sustitución por desgaste, daño o envejecimiento",
+      "accion": "reemplazo_por_condicion",
+      "intervalo_km": null,
+      "intervalo_meses": null,
+      "tolerancia_km": null,
+      "tolerancia_dias": null,
+      "severidad": "importante",
+      "consecuencia_de_retraso": "Pérdida de agarre o falla del neumático.",
+      "duracion_estimada_taller_horas": null,
+      "fuente": [
+        {
+          "id": "M26",
+          "url": "https://www.mazda.mx/static/manuals/2026/mazda3/2026_mazda3_web_om_sp.pdf"
+        }
+      ],
+      "confianza": "media",
+      "origen_intervalo": "por_condicion_oficial_sin_km_fijo",
+      "estado": "pendiente_aprobacion",
+      "habilitado_produccion": false,
+      "aplicabilidad": {
+        "mercado": "MX",
+        "anios_modelo": [
+          2021,
+          2022,
+          2023,
+          2024,
+          2025,
+          2026
+        ],
+        "carrocerias": [
+          "sedan",
+          "hatchback"
+        ],
+        "motores": [
+          "G25",
+          "G25T",
+          "G20MHEV"
+        ],
+        "restriccion": "Solo combinaciones existentes en variantes-mx.v0.1.0.json; confirmar VIN y edición"
+      },
+      "localizador": "9-41 a 9-43",
+      "criterio": "Indicadores de desgaste, daño, inspección y edad desde fabricación de cada llanta.",
+      "referencia_edad_meses": 72,
+      "nota": "Manual: recomendación general alrededor de seis años; no es garantía de duración ni permiso para usar llantas dañadas hasta entonces. Política exacta de retiro por edad pendiente con Mazda/Yokohama.",
+      "escalar_a_critico_si": "Daño estructural, pérdida de presión o desgaste inseguro."
+    },
+    {
+      "id": "direccion",
+      "servicio": "Dirección y articulaciones",
+      "accion": "inspeccion",
+      "intervalo_km": 10000,
+      "intervalo_meses": 6,
+      "tolerancia_km": null,
+      "tolerancia_dias": null,
+      "severidad": "importante",
+      "consecuencia_de_retraso": "Pérdida de precisión o control si hay holguras no atendidas.",
+      "duracion_estimada_taller_horas": null,
+      "fuente": [
+        {
+          "id": "M21",
+          "url": "https://www.mazda.mx/static/manuals/2021/2021_mazda3_web_om_sp/contents/07020603.html"
+        },
+        {
+          "id": "M22",
+          "url": "https://www.mazdausa.com/static/manuals/2022/mazda3/contents/07020603.html"
+        },
+        {
+          "id": "M23",
+          "url": "https://www.mazda.mx/static/manuals/2023/mazda3/2023_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M24",
+          "url": "https://www.mazda.mx/static/manuals/2024/mazda3/2024_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M25",
+          "url": "https://www.mazda.mx/static/manuals/2025/mazda3/2025_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M26",
+          "url": "https://www.mazda.mx/static/manuals/2026/mazda3/2026_mazda3_web_om_sp.pdf"
+        }
+      ],
+      "confianza": "media",
+      "origen_intervalo": "derivado_tabla_oficial",
+      "estado": "pendiente_aprobacion",
+      "habilitado_produccion": false,
+      "aplicabilidad": {
+        "mercado": "MX",
+        "anios_modelo": [
+          2021,
+          2022,
+          2023,
+          2024,
+          2025,
+          2026
+        ],
+        "carrocerias": [
+          "sedan",
+          "hatchback"
+        ],
+        "motores": [
+          "G25",
+          "G25T",
+          "G20MHEV"
+        ],
+        "restriccion": "Solo combinaciones existentes en variantes-mx.v0.1.0.json; confirmar VIN y edición"
+      },
+      "cada_n_servicios_programados": 1,
+      "nota_conversion": "Equivalencia nominal con base 10,000 km/6 meses del manual. Contar 1 servicios programados; un cambio de aceite intermedio no es otro servicio programado. No recalcular con 12 meses sin resolver conflicto C01.",
+      "conflictos": [
+        "C01"
+      ]
+    },
+    {
+      "id": "suspension_rodamientos",
+      "servicio": "Suspensión, rótulas y juego de rodamientos",
+      "accion": "inspeccion",
+      "intervalo_km": 20000,
+      "intervalo_meses": 12,
+      "tolerancia_km": null,
+      "tolerancia_dias": null,
+      "severidad": "importante",
+      "consecuencia_de_retraso": "Holguras o desgaste pueden comprometer estabilidad.",
+      "duracion_estimada_taller_horas": null,
+      "fuente": [
+        {
+          "id": "M21",
+          "url": "https://www.mazda.mx/static/manuals/2021/2021_mazda3_web_om_sp/contents/07020603.html"
+        },
+        {
+          "id": "M22",
+          "url": "https://www.mazdausa.com/static/manuals/2022/mazda3/contents/07020603.html"
+        },
+        {
+          "id": "M23",
+          "url": "https://www.mazda.mx/static/manuals/2023/mazda3/2023_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M24",
+          "url": "https://www.mazda.mx/static/manuals/2024/mazda3/2024_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M25",
+          "url": "https://www.mazda.mx/static/manuals/2025/mazda3/2025_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M26",
+          "url": "https://www.mazda.mx/static/manuals/2026/mazda3/2026_mazda3_web_om_sp.pdf"
+        }
+      ],
+      "confianza": "media",
+      "origen_intervalo": "derivado_tabla_oficial",
+      "estado": "pendiente_aprobacion",
+      "habilitado_produccion": false,
+      "aplicabilidad": {
+        "mercado": "MX",
+        "anios_modelo": [
+          2021,
+          2022,
+          2023,
+          2024,
+          2025,
+          2026
+        ],
+        "carrocerias": [
+          "sedan",
+          "hatchback"
+        ],
+        "motores": [
+          "G25",
+          "G25T",
+          "G20MHEV"
+        ],
+        "restriccion": "Solo combinaciones existentes en variantes-mx.v0.1.0.json; confirmar VIN y edición"
+      },
+      "cada_n_servicios_programados": 2,
+      "nota_conversion": "Equivalencia nominal con base 10,000 km/6 meses del manual. Contar 2 servicios programados; un cambio de aceite intermedio no es otro servicio programado. No recalcular con 12 meses sin resolver conflicto C01.",
+      "conflictos": [
+        "C01"
+      ]
+    },
+    {
+      "id": "guardapolvos",
+      "servicio": "Guardapolvos de semiejes",
+      "accion": "inspeccion",
+      "intervalo_km": 20000,
+      "intervalo_meses": 12,
+      "tolerancia_km": null,
+      "tolerancia_dias": null,
+      "severidad": "importante",
+      "consecuencia_de_retraso": "Pérdida de lubricación y contaminación de juntas.",
+      "duracion_estimada_taller_horas": null,
+      "fuente": [
+        {
+          "id": "M21",
+          "url": "https://www.mazda.mx/static/manuals/2021/2021_mazda3_web_om_sp/contents/07020603.html"
+        },
+        {
+          "id": "M22",
+          "url": "https://www.mazdausa.com/static/manuals/2022/mazda3/contents/07020603.html"
+        },
+        {
+          "id": "M23",
+          "url": "https://www.mazda.mx/static/manuals/2023/mazda3/2023_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M24",
+          "url": "https://www.mazda.mx/static/manuals/2024/mazda3/2024_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M25",
+          "url": "https://www.mazda.mx/static/manuals/2025/mazda3/2025_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M26",
+          "url": "https://www.mazda.mx/static/manuals/2026/mazda3/2026_mazda3_web_om_sp.pdf"
+        }
+      ],
+      "confianza": "media",
+      "origen_intervalo": "derivado_tabla_oficial",
+      "estado": "pendiente_aprobacion",
+      "habilitado_produccion": false,
+      "aplicabilidad": {
+        "mercado": "MX",
+        "anios_modelo": [
+          2021,
+          2022,
+          2023,
+          2024,
+          2025,
+          2026
+        ],
+        "carrocerias": [
+          "sedan",
+          "hatchback"
+        ],
+        "motores": [
+          "G25",
+          "G25T",
+          "G20MHEV"
+        ],
+        "restriccion": "Solo combinaciones existentes en variantes-mx.v0.1.0.json; confirmar VIN y edición"
+      },
+      "cada_n_servicios_programados": 2,
+      "nota_conversion": "Equivalencia nominal con base 10,000 km/6 meses del manual. Contar 2 servicios programados; un cambio de aceite intermedio no es otro servicio programado. No recalcular con 12 meses sin resolver conflicto C01.",
+      "conflictos": [
+        "C01"
+      ]
+    },
+    {
+      "id": "tornilleria",
+      "servicio": "Pernos y tuercas de chasis y carrocería",
+      "accion": "apriete",
+      "intervalo_km": 20000,
+      "intervalo_meses": 12,
+      "tolerancia_km": null,
+      "tolerancia_dias": null,
+      "severidad": "importante",
+      "consecuencia_de_retraso": "Aflojamiento de componentes.",
+      "duracion_estimada_taller_horas": null,
+      "fuente": [
+        {
+          "id": "M21",
+          "url": "https://www.mazda.mx/static/manuals/2021/2021_mazda3_web_om_sp/contents/07020603.html"
+        },
+        {
+          "id": "M22",
+          "url": "https://www.mazdausa.com/static/manuals/2022/mazda3/contents/07020603.html"
+        },
+        {
+          "id": "M23",
+          "url": "https://www.mazda.mx/static/manuals/2023/mazda3/2023_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M24",
+          "url": "https://www.mazda.mx/static/manuals/2024/mazda3/2024_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M25",
+          "url": "https://www.mazda.mx/static/manuals/2025/mazda3/2025_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M26",
+          "url": "https://www.mazda.mx/static/manuals/2026/mazda3/2026_mazda3_web_om_sp.pdf"
+        }
+      ],
+      "confianza": "media",
+      "origen_intervalo": "derivado_tabla_oficial",
+      "estado": "pendiente_aprobacion",
+      "habilitado_produccion": false,
+      "aplicabilidad": {
+        "mercado": "MX",
+        "anios_modelo": [
+          2021,
+          2022,
+          2023,
+          2024,
+          2025,
+          2026
+        ],
+        "carrocerias": [
+          "sedan",
+          "hatchback"
+        ],
+        "motores": [
+          "G25",
+          "G25T",
+          "G20MHEV"
+        ],
+        "restriccion": "Solo combinaciones existentes en variantes-mx.v0.1.0.json; confirmar VIN y edición"
+      },
+      "cada_n_servicios_programados": 2,
+      "nota_conversion": "Equivalencia nominal con base 10,000 km/6 meses del manual. Contar 2 servicios programados; un cambio de aceite intermedio no es otro servicio programado. No recalcular con 12 meses sin resolver conflicto C01.",
+      "conflictos": [
+        "C01"
+      ],
+      "nota": "Pares de apriete específicos pendientes; no se autoriza apretar a un valor genérico."
+    },
+    {
+      "id": "escape",
+      "servicio": "Escape y protecciones térmicas",
+      "accion": "inspeccion",
+      "intervalo_km": 20000,
+      "intervalo_meses": 12,
+      "tolerancia_km": null,
+      "tolerancia_dias": null,
+      "severidad": "importante",
+      "consecuencia_de_retraso": "Fugas de gases o protecciones sueltas.",
+      "duracion_estimada_taller_horas": null,
+      "fuente": [
+        {
+          "id": "M21",
+          "url": "https://www.mazda.mx/static/manuals/2021/2021_mazda3_web_om_sp/contents/07020603.html"
+        },
+        {
+          "id": "M22",
+          "url": "https://www.mazdausa.com/static/manuals/2022/mazda3/contents/07020603.html"
+        },
+        {
+          "id": "M23",
+          "url": "https://www.mazda.mx/static/manuals/2023/mazda3/2023_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M24",
+          "url": "https://www.mazda.mx/static/manuals/2024/mazda3/2024_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M25",
+          "url": "https://www.mazda.mx/static/manuals/2025/mazda3/2025_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M26",
+          "url": "https://www.mazda.mx/static/manuals/2026/mazda3/2026_mazda3_web_om_sp.pdf"
+        }
+      ],
+      "confianza": "media",
+      "origen_intervalo": "derivado_tabla_oficial",
+      "estado": "pendiente_aprobacion",
+      "habilitado_produccion": false,
+      "aplicabilidad": {
+        "mercado": "MX",
+        "anios_modelo": [
+          2021,
+          2022,
+          2023,
+          2024,
+          2025,
+          2026
+        ],
+        "carrocerias": [
+          "sedan",
+          "hatchback"
+        ],
+        "motores": [
+          "G25",
+          "G25T",
+          "G20MHEV"
+        ],
+        "restriccion": "Solo combinaciones existentes en variantes-mx.v0.1.0.json; confirmar VIN y edición"
+      },
+      "cada_n_servicios_programados": 2,
+      "nota_conversion": "Equivalencia nominal con base 10,000 km/6 meses del manual. Contar 2 servicios programados; un cambio de aceite intermedio no es otro servicio programado. No recalcular con 12 meses sin resolver conflicto C01.",
+      "conflictos": [
+        "C01"
+      ]
+    },
+    {
+      "id": "kit_neumatico",
+      "servicio": "Kit de reparación de llantas",
+      "accion": "inspeccion",
+      "intervalo_km": null,
+      "intervalo_meses": 12,
+      "tolerancia_km": null,
+      "tolerancia_dias": null,
+      "severidad": "menor",
+      "consecuencia_de_retraso": "Kit inservible en una emergencia.",
+      "duracion_estimada_taller_horas": null,
+      "fuente": [
+        {
+          "id": "M21",
+          "url": "https://www.mazda.mx/static/manuals/2021/2021_mazda3_web_om_sp/contents/07020603.html"
+        },
+        {
+          "id": "M22",
+          "url": "https://www.mazdausa.com/static/manuals/2022/mazda3/contents/07020603.html"
+        },
+        {
+          "id": "M23",
+          "url": "https://www.mazda.mx/static/manuals/2023/mazda3/2023_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M24",
+          "url": "https://www.mazda.mx/static/manuals/2024/mazda3/2024_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M25",
+          "url": "https://www.mazda.mx/static/manuals/2025/mazda3/2025_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M26",
+          "url": "https://www.mazda.mx/static/manuals/2026/mazda3/2026_mazda3_web_om_sp.pdf"
+        }
+      ],
+      "confianza": "alta",
+      "origen_intervalo": "oficial_fabricante",
+      "estado": "pendiente_aprobacion",
+      "habilitado_produccion": false,
+      "aplicabilidad": {
+        "mercado": "MX",
+        "anios_modelo": [
+          2021,
+          2022,
+          2023,
+          2024,
+          2025,
+          2026
+        ],
+        "carrocerias": [
+          "sedan",
+          "hatchback"
+        ],
+        "motores": [
+          "G25",
+          "G25T",
+          "G20MHEV"
+        ],
+        "restriccion": "Solo combinaciones existentes en variantes-mx.v0.1.0.json; confirmar VIN y edición"
+      },
+      "condicion_aplicabilidad": "Solo si está equipado.",
+      "criterio_adicional": "Reemplazar sellante antes de su caducidad individual, aunque no venza el año."
+    },
+    {
+      "id": "luces",
+      "servicio": "Funcionamiento de luces",
+      "accion": "inspeccion",
+      "intervalo_km": 10000,
+      "intervalo_meses": 6,
+      "tolerancia_km": null,
+      "tolerancia_dias": null,
+      "severidad": "importante",
+      "consecuencia_de_retraso": "Menor visibilidad o señalización.",
+      "duracion_estimada_taller_horas": null,
+      "fuente": [
+        {
+          "id": "M21",
+          "url": "https://www.mazda.mx/static/manuals/2021/2021_mazda3_web_om_sp/contents/07020603.html"
+        },
+        {
+          "id": "M22",
+          "url": "https://www.mazdausa.com/static/manuals/2022/mazda3/contents/07020603.html"
+        },
+        {
+          "id": "M23",
+          "url": "https://www.mazda.mx/static/manuals/2023/mazda3/2023_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M24",
+          "url": "https://www.mazda.mx/static/manuals/2024/mazda3/2024_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M25",
+          "url": "https://www.mazda.mx/static/manuals/2025/mazda3/2025_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M26",
+          "url": "https://www.mazda.mx/static/manuals/2026/mazda3/2026_mazda3_web_om_sp.pdf"
+        }
+      ],
+      "confianza": "media",
+      "origen_intervalo": "derivado_tabla_oficial",
+      "estado": "pendiente_aprobacion",
+      "habilitado_produccion": false,
+      "aplicabilidad": {
+        "mercado": "MX",
+        "anios_modelo": [
+          2021,
+          2022,
+          2023,
+          2024,
+          2025,
+          2026
+        ],
+        "carrocerias": [
+          "sedan",
+          "hatchback"
+        ],
+        "motores": [
+          "G25",
+          "G25T",
+          "G20MHEV"
+        ],
+        "restriccion": "Solo combinaciones existentes en variantes-mx.v0.1.0.json; confirmar VIN y edición"
+      },
+      "cada_n_servicios_programados": 1,
+      "nota_conversion": "Equivalencia nominal con base 10,000 km/6 meses del manual. Contar 1 servicios programados; un cambio de aceite intermedio no es otro servicio programado. No recalcular con 12 meses sin resolver conflicto C01.",
+      "conflictos": [
+        "C01"
+      ],
+      "escalar_a_critico_si": "La falla impide circulación segura en las condiciones del trayecto."
+    },
+    {
+      "id": "bateria_12v",
+      "servicio": "Batería de 12 V y sistema de carga",
+      "accion": "diagnostico_por_condicion",
+      "intervalo_km": null,
+      "intervalo_meses": null,
+      "tolerancia_km": null,
+      "tolerancia_dias": null,
+      "severidad": "importante",
+      "consecuencia_de_retraso": "Inmovilización por falta de arranque o alimentación.",
+      "duracion_estimada_taller_horas": null,
+      "fuente": [
+        {
+          "id": "M26",
+          "url": "https://www.mazda.mx/static/manuals/2026/mazda3/2026_mazda3_web_om_sp.pdf"
+        }
+      ],
+      "confianza": "baja",
+      "origen_intervalo": "sin_intervalo_reemplazo_publicado",
+      "estado": "pendiente_validacion_agencia",
+      "habilitado_produccion": false,
+      "aplicabilidad": {
+        "mercado": "MX",
+        "anios_modelo": [
+          2021,
+          2022,
+          2023,
+          2024,
+          2025,
+          2026
+        ],
+        "carrocerias": [
+          "sedan",
+          "hatchback"
+        ],
+        "motores": [
+          "G25",
+          "G25T",
+          "G20MHEV"
+        ],
+        "restriccion": "Solo combinaciones existentes en variantes-mx.v0.1.0.json; confirmar VIN y edición"
+      },
+      "localizador": "9-25 a 9-27",
+      "criterio": "Estado de carga/salud, capacidad de arranque, conexiones y sistema de carga. No inferir vida por km solamente.",
+      "nota": "Propuesta propia: prueba durante servicio programado, con protocolo y umbrales de agencia; aún no habilitada."
+    },
+    {
+      "id": "bateria_mhev",
+      "servicio": "Batería y sistema MHEV",
+      "accion": "diagnostico_por_condicion",
+      "intervalo_km": null,
+      "intervalo_meses": null,
+      "tolerancia_km": null,
+      "tolerancia_dias": null,
+      "severidad": "importante",
+      "consecuencia_de_retraso": "Pérdida de funciones híbridas o inmovilización.",
+      "duracion_estimada_taller_horas": null,
+      "fuente": [
+        {
+          "id": "M26",
+          "url": "https://www.mazda.mx/static/manuals/2026/mazda3/2026_mazda3_web_om_sp.pdf"
+        }
+      ],
+      "confianza": "baja",
+      "origen_intervalo": "pendiente_validar",
+      "estado": "pendiente_validacion_agencia",
+      "habilitado_produccion": false,
+      "aplicabilidad": {
+        "mercado": "MX",
+        "anios_modelo": [
+          2021,
+          2022,
+          2023,
+          2024,
+          2025,
+          2026
+        ],
+        "carrocerias": [
+          "sedan",
+          "hatchback"
+        ],
+        "motores": [
+          "G25",
+          "G25T",
+          "G20MHEV"
+        ],
+        "restriccion": "Solo combinaciones existentes en variantes-mx.v0.1.0.json; confirmar VIN y edición"
+      },
+      "motores_permitidos": [
+        "G20MHEV"
+      ],
+      "nota": "Sin vida útil fija publicada encontrada; intervención por personal capacitado. No confundir con batería de 12 V."
+    },
+    {
+      "id": "transmision_at",
+      "servicio": "Fluido y estado de transmisión automática",
+      "accion": "diagnostico_por_condicion",
+      "intervalo_km": null,
+      "intervalo_meses": null,
+      "tolerancia_km": null,
+      "tolerancia_dias": null,
+      "severidad": "importante",
+      "consecuencia_de_retraso": "Fugas, contaminación o sobretemperatura pueden dañar la caja.",
+      "duracion_estimada_taller_horas": null,
+      "fuente": [
+        {
+          "id": "M21",
+          "url": "https://www.mazda.mx/static/manuals/2021/2021_mazda3_web_om_sp/contents/07020603.html"
+        },
+        {
+          "id": "M22",
+          "url": "https://www.mazdausa.com/static/manuals/2022/mazda3/contents/07020603.html"
+        },
+        {
+          "id": "M23",
+          "url": "https://www.mazda.mx/static/manuals/2023/mazda3/2023_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M24",
+          "url": "https://www.mazda.mx/static/manuals/2024/mazda3/2024_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M25",
+          "url": "https://www.mazda.mx/static/manuals/2025/mazda3/2025_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M26",
+          "url": "https://www.mazda.mx/static/manuals/2026/mazda3/2026_mazda3_web_om_sp.pdf"
+        }
+      ],
+      "confianza": "baja",
+      "origen_intervalo": "no_listado_en_tabla_mexico",
+      "estado": "pendiente_validacion_agencia",
+      "habilitado_produccion": false,
+      "aplicabilidad": {
+        "mercado": "MX",
+        "anios_modelo": [
+          2021,
+          2022,
+          2023,
+          2024,
+          2025,
+          2026
+        ],
+        "carrocerias": [
+          "sedan",
+          "hatchback"
+        ],
+        "motores": [
+          "G25",
+          "G25T",
+          "G20MHEV"
+        ],
+        "restriccion": "Solo combinaciones existentes en variantes-mx.v0.1.0.json; confirmar VIN y edición"
+      },
+      "transmisiones_permitidas": [
+        "AT6"
+      ],
+      "nota": "No convertir ausencia de intervalo en 'de por vida'. No fijar cambio a 60,000/100,000 km ni lavado sin criterio Mazda por VIN."
+    },
+    {
+      "id": "transmision_mt",
+      "servicio": "Aceite de transmisión manual y embrague",
+      "accion": "diagnostico_por_condicion",
+      "intervalo_km": null,
+      "intervalo_meses": null,
+      "tolerancia_km": null,
+      "tolerancia_dias": null,
+      "severidad": "importante",
+      "consecuencia_de_retraso": "Desgaste, fugas o dificultad para transmitir movimiento.",
+      "duracion_estimada_taller_horas": null,
+      "fuente": [
+        {
+          "id": "M21",
+          "url": "https://www.mazda.mx/static/manuals/2021/2021_mazda3_web_om_sp/contents/07020603.html"
+        },
+        {
+          "id": "M22",
+          "url": "https://www.mazdausa.com/static/manuals/2022/mazda3/contents/07020603.html"
+        },
+        {
+          "id": "M23",
+          "url": "https://www.mazda.mx/static/manuals/2023/mazda3/2023_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M24",
+          "url": "https://www.mazda.mx/static/manuals/2024/mazda3/2024_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M25",
+          "url": "https://www.mazda.mx/static/manuals/2025/mazda3/2025_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M26",
+          "url": "https://www.mazda.mx/static/manuals/2026/mazda3/2026_mazda3_web_om_sp.pdf"
+        }
+      ],
+      "confianza": "baja",
+      "origen_intervalo": "no_listado_en_tabla_mexico",
+      "estado": "pendiente_validacion_agencia",
+      "habilitado_produccion": false,
+      "aplicabilidad": {
+        "mercado": "MX",
+        "anios_modelo": [
+          2021,
+          2022,
+          2023,
+          2024,
+          2025,
+          2026
+        ],
+        "carrocerias": [
+          "sedan",
+          "hatchback"
+        ],
+        "motores": [
+          "G25",
+          "G25T",
+          "G20MHEV"
+        ],
+        "restriccion": "Solo combinaciones existentes en variantes-mx.v0.1.0.json; confirmar VIN y edición"
+      },
+      "transmisiones_permitidas": [
+        "MT6"
+      ],
+      "nota": "No importar el intervalo de la sección Israel a México."
+    },
+    {
+      "id": "awd",
+      "servicio": "Transferencia y diferencial AWD",
+      "accion": "diagnostico_por_condicion",
+      "intervalo_km": null,
+      "intervalo_meses": null,
+      "tolerancia_km": null,
+      "tolerancia_dias": null,
+      "severidad": "importante",
+      "consecuencia_de_retraso": "Daño al tren de transmisión por fugas o lubricación inadecuada.",
+      "duracion_estimada_taller_horas": null,
+      "fuente": [
+        {
+          "id": "M21",
+          "url": "https://www.mazda.mx/static/manuals/2021/2021_mazda3_web_om_sp/contents/07020603.html"
+        },
+        {
+          "id": "M22",
+          "url": "https://www.mazdausa.com/static/manuals/2022/mazda3/contents/07020603.html"
+        },
+        {
+          "id": "M23",
+          "url": "https://www.mazda.mx/static/manuals/2023/mazda3/2023_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M24",
+          "url": "https://www.mazda.mx/static/manuals/2024/mazda3/2024_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M25",
+          "url": "https://www.mazda.mx/static/manuals/2025/mazda3/2025_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M26",
+          "url": "https://www.mazda.mx/static/manuals/2026/mazda3/2026_mazda3_web_om_sp.pdf"
+        }
+      ],
+      "confianza": "baja",
+      "origen_intervalo": "no_listado_en_tabla_mexico",
+      "estado": "pendiente_validacion_agencia",
+      "habilitado_produccion": false,
+      "aplicabilidad": {
+        "mercado": "MX",
+        "anios_modelo": [
+          2021,
+          2022,
+          2023,
+          2024,
+          2025,
+          2026
+        ],
+        "carrocerias": [
+          "sedan",
+          "hatchback"
+        ],
+        "motores": [
+          "G25",
+          "G25T",
+          "G20MHEV"
+        ],
+        "restriccion": "Solo combinaciones existentes en variantes-mx.v0.1.0.json; confirmar VIN y edición"
+      },
+      "tracciones_permitidas": [
+        "AWD"
+      ],
+      "nota": "Confirmar programa normal/severo y procedimiento tras contaminación o inundación."
+    },
+    {
+      "id": "distribucion",
+      "servicio": "Distribución: cadena/correa, tensores y guías",
+      "accion": "diagnostico_por_condicion",
+      "intervalo_km": null,
+      "intervalo_meses": null,
+      "tolerancia_km": null,
+      "tolerancia_dias": null,
+      "severidad": "importante",
+      "consecuencia_de_retraso": "Una falla de sincronización puede provocar daño mayor.",
+      "duracion_estimada_taller_horas": null,
+      "fuente": [
+        {
+          "id": "M21",
+          "url": "https://www.mazda.mx/static/manuals/2021/2021_mazda3_web_om_sp/contents/07020603.html"
+        },
+        {
+          "id": "M22",
+          "url": "https://www.mazdausa.com/static/manuals/2022/mazda3/contents/07020603.html"
+        },
+        {
+          "id": "M23",
+          "url": "https://www.mazda.mx/static/manuals/2023/mazda3/2023_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M24",
+          "url": "https://www.mazda.mx/static/manuals/2024/mazda3/2024_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M25",
+          "url": "https://www.mazda.mx/static/manuals/2025/mazda3/2025_mazda3_web_om_sp.pdf"
+        },
+        {
+          "id": "M26",
+          "url": "https://www.mazda.mx/static/manuals/2026/mazda3/2026_mazda3_web_om_sp.pdf"
+        }
+      ],
+      "confianza": "baja",
+      "origen_intervalo": "pendiente_validar",
+      "estado": "pendiente_validacion_agencia",
+      "habilitado_produccion": false,
+      "aplicabilidad": {
+        "mercado": "MX",
+        "anios_modelo": [
+          2021,
+          2022,
+          2023,
+          2024,
+          2025,
+          2026
+        ],
+        "carrocerias": [
+          "sedan",
+          "hatchback"
+        ],
+        "motores": [
+          "G25",
+          "G25T",
+          "G20MHEV"
+        ],
+        "restriccion": "Solo combinaciones existentes en variantes-mx.v0.1.0.json; confirmar VIN y edición"
+      },
+      "nota": "No se encontró intervalo México en la tabla revisada. Confirmar arquitectura y números de pieza por motor/VIN; no equiparar con las correas de accesorios ni programar cambio arbitrario."
+    },
+    {
+      "id": "limpiadores",
+      "servicio": "Limpiaparabrisas y lavaparabrisas",
+      "accion": "inspeccion_por_condicion",
+      "intervalo_km": null,
+      "intervalo_meses": null,
+      "tolerancia_km": null,
+      "tolerancia_dias": null,
+      "severidad": "menor",
+      "consecuencia_de_retraso": "Visibilidad insuficiente con lluvia o suciedad.",
+      "duracion_estimada_taller_horas": null,
+      "fuente": [
+        {
+          "id": "M26",
+          "url": "https://www.mazda.mx/static/manuals/2026/mazda3/2026_mazda3_web_om_sp.pdf"
+        }
+      ],
+      "confianza": "media",
+      "origen_intervalo": "por_condicion_sin_km_fijo",
+      "estado": "pendiente_aprobacion",
+      "habilitado_produccion": false,
+      "aplicabilidad": {
+        "mercado": "MX",
+        "anios_modelo": [
+          2021,
+          2022,
+          2023,
+          2024,
+          2025,
+          2026
+        ],
+        "carrocerias": [
+          "sedan",
+          "hatchback"
+        ],
+        "motores": [
+          "G25",
+          "G25T",
+          "G20MHEV"
+        ],
+        "restriccion": "Solo combinaciones existentes en variantes-mx.v0.1.0.json; confirmar VIN y edición"
+      },
+      "localizador": "Inspección exterior del vehículo",
+      "nota": "No se impone cambio anual. Si afecta visibilidad requerida, corregir antes de circular."
+    },
+    {
+      "id": "chapas_bisagras",
+      "servicio": "Lubricación de chapas y bisagras",
+      "accion": "lubricacion",
+      "intervalo_km": 10000,
+      "intervalo_meses": 12,
+      "tolerancia_km": null,
+      "tolerancia_dias": null,
+      "severidad": "menor",
+      "consecuencia_de_retraso": "Endurecimiento o desgaste del mecanismo.",
+      "duracion_estimada_taller_horas": null,
+      "fuente": [
+        {
+          "id": "MXWEB",
+          "url": "https://www.mazda.mx/servicio-mazda/mantenimiento-mazda/mantenimiento"
+        }
+      ],
+      "confianza": "media",
+      "origen_intervalo": "oficial_programa_comercial",
+      "estado": "pendiente_aprobacion",
+      "habilitado_produccion": false,
+      "aplicabilidad": {
+        "mercado": "MX",
+        "anios_modelo": [
+          2021,
+          2022,
+          2023,
+          2024,
+          2025,
+          2026
+        ],
+        "carrocerias": [
+          "sedan",
+          "hatchback"
+        ],
+        "motores": [
+          "G25",
+          "G25T",
+          "G20MHEV"
+        ],
+        "restriccion": "Solo combinaciones existentes en variantes-mx.v0.1.0.json; confirmar VIN y edición"
+      },
+      "conflictos": [
+        "C01"
+      ],
+      "nota": "La tabla comercial lo incluye en cada servicio; frecuencia temporal pendiente de conciliación con manual."
+    }
+  ],
+  "fallas_y_campanias": [
+    {
+      "intervalo_km": null,
+      "intervalo_meses": null,
+      "tolerancia_km": null,
+      "tolerancia_dias": null,
+      "rango_km_aparicion": {
+        "min": null,
+        "max": null,
+        "estado": "no_publicado_en_fuentes_consultadas"
+      },
+      "probabilidad_falla": null,
+      "origen_intervalo": "evento_no_periodico",
+      "habilitado_produccion": false,
+      "id": "MX-33-2021",
+      "servicio": "Campaña: válvulas de aire de llantas",
+      "tipo": "recall_mexico",
+      "anios_modelo": [
+        2021
+      ],
+      "motores_permitidos": null,
+      "severidad": "critico",
+      "consecuencia_de_retraso": "Pérdida lenta o repentina de presión.",
+      "duracion_estimada_taller_horas": 1.5,
+      "origen_duracion": "Publicado por Profeco para acción correctiva; no incluye traslados/cola/refacciones.",
+      "fuente": [
+        {
+          "id": "MXR21",
+          "url": "https://alertas.gob.mx/detallealerta.php?alerta=642&site=RAR"
+        },
+        {
+          "id": "MXVIN",
+          "url": "https://www.mazda.mx/servicio-mazda/agenda-tu-cita/llamado-a-revision"
+        }
+      ],
+      "confianza": "alta",
+      "aplicabilidad_mexico": "confirmada_para_ciertas_unidades; validar VIN y reparación previa",
+      "accion": "Consultar VIN inmediatamente; reemplazo de cuatro válvulas según campaña. Si hay pérdida de presión, detener operación segura y solicitar asistencia.",
+      "fecha_limite": "Atención inmediata de campaña confirmada; instrucción operativa exacta a validar con agencia."
+    },
+    {
+      "intervalo_km": null,
+      "intervalo_meses": null,
+      "tolerancia_km": null,
+      "tolerancia_dias": null,
+      "rango_km_aparicion": {
+        "min": null,
+        "max": null,
+        "estado": "no_publicado_en_fuentes_consultadas"
+      },
+      "probabilidad_falla": null,
+      "origen_intervalo": "evento_no_periodico",
+      "habilitado_produccion": false,
+      "id": "SSPD5-US",
+      "servicio": "Consumo de aceite asociado a sellos de válvula",
+      "tipo": "boletin_extension_garantia_extranjero",
+      "anios_modelo": [
+        2021,
+        2022
+      ],
+      "motores_permitidos": [
+        "G25T"
+      ],
+      "dtc": [
+        "P250F:00"
+      ],
+      "severidad": "importante",
+      "consecuencia_de_retraso": "La falta de lubricación puede provocar daño mayor.",
+      "duracion_estimada_taller_horas": null,
+      "fuente": [
+        {
+          "id": "USOIL",
+          "url": "https://static.nhtsa.gov/odi/tsbs/2024/MC-11003694-0001.pdf"
+        }
+      ],
+      "confianza": "baja",
+      "aplicabilidad_mexico": "pendiente_validacion_agencia; 'Mexico built' solo indica planta",
+      "accion": "Diagnosticar consumo/alerta; no atribuir cualquier pérdida a sellos. Baja presión de aceite o síntomas graves escalan a crítico.",
+      "fecha_limite": null,
+      "nota": "Los 2,000 km del documento son una prueba de consumo, NO rango de aparición de falla ni tolerancia para continuar."
+    },
+    {
+      "intervalo_km": null,
+      "intervalo_meses": null,
+      "tolerancia_km": null,
+      "tolerancia_dias": null,
+      "rango_km_aparicion": {
+        "min": null,
+        "max": null,
+        "estado": "no_publicado_en_fuentes_consultadas"
+      },
+      "probabilidad_falla": null,
+      "origen_intervalo": "evento_no_periodico",
+      "habilitado_produccion": false,
+      "id": "SSPD8-US",
+      "servicio": "Termostato de control de refrigerante / P0126",
+      "tipo": "boletin_extension_garantia_extranjero",
+      "anios_modelo": [
+        2021,
+        2022,
+        2023
+      ],
+      "motores_permitidos": [
+        "G25"
+      ],
+      "dtc": [
+        "P0126:00"
+      ],
+      "severidad": "importante",
+      "consecuencia_de_retraso": "Funcionamiento fuera del control térmico esperado.",
+      "duracion_estimada_taller_horas": null,
+      "fuente": [
+        {
+          "id": "USCCV",
+          "url": "https://static.nhtsa.gov/odi/tsbs/2025/MC-11016300-0001.pdf"
+        }
+      ],
+      "confianza": "baja",
+      "aplicabilidad_mexico": "pendiente_validacion_agencia",
+      "accion": "Diagnóstico de termostato, calentamiento lento o calefacción deficiente. Sobrecalentamiento/fuga importante: crítico.",
+      "fecha_limite": null,
+      "nota": "Boletín abarca Mazda3 2019-2023 2.0/2.5 en EE.UU.; no confirma MHEV México. Tiempo técnico publicado 1.5 h, NO estancia total. Los 240,000 km son cobertura de garantía, no vida útil."
+    },
+    {
+      "intervalo_km": null,
+      "intervalo_meses": null,
+      "tolerancia_km": null,
+      "tolerancia_dias": null,
+      "rango_km_aparicion": {
+        "min": null,
+        "max": null,
+        "estado": "no_publicado_en_fuentes_consultadas"
+      },
+      "probabilidad_falla": null,
+      "origen_intervalo": "evento_no_periodico",
+      "habilitado_produccion": false,
+      "id": "25V357-US",
+      "servicio": "Campaña extranjera: módulo de bolsas de aire SAS",
+      "tipo": "recall_extranjero",
+      "anios_modelo": [
+        2024,
+        2025
+      ],
+      "motores_permitidos": null,
+      "severidad": "critico",
+      "consecuencia_de_retraso": "Las bolsas podrían no activarse en un choque.",
+      "duracion_estimada_taller_horas": null,
+      "fuente": [
+        {
+          "id": "USAIRBAG",
+          "url": "https://static.nhtsa.gov/odi/rcl/2025/RCAK-25V357-5527.pdf"
+        },
+        {
+          "id": "USAIRBAG573",
+          "url": "https://static.nhtsa.gov/odi/rcl/2025/RCLRPT-25V357-7814.pdf?pubDate=20250607"
+        },
+        {
+          "id": "MXVIN",
+          "url": "https://www.mazda.mx/servicio-mazda/agenda-tu-cita/llamado-a-revision"
+        }
+      ],
+      "confianza": "baja",
+      "aplicabilidad_mexico": "pendiente_validacion_agencia_y_VIN; no afirmar recall mexicano",
+      "accion": "Consulta de elegibilidad con agencia; si hay falla de seguridad confirmada, no diferir por agrupación.",
+      "fecha_limite": null,
+      "nota": "Producción reportada 2023-05-25 a 2025-01-15; no usar ese rango como elegibilidad suficiente."
+    }
+  ],
+  "cobertura_busqueda_recalls": {
+    "fuentes_principales": [
+      "Mazda México consulta VIN",
+      "Profeco/RAR",
+      "Documentos Mazda alojados en NHTSA"
+    ],
+    "resultado": "Un antecedente mexicano documentado y tres extranjeros para validación. Investigación no exhaustiva; no equivale a certificado de ausencia de campañas.",
+    "por_anio": [
+      {
+        "anio": 2021,
+        "hallazgos": [
+          "MX-33-2021",
+          "SSPD5-US",
+          "SSPD8-US"
+        ]
+      },
+      {
+        "anio": 2022,
+        "hallazgos": [
+          "SSPD5-US",
+          "SSPD8-US"
+        ]
+      },
+      {
+        "anio": 2023,
+        "hallazgos": [
+          "SSPD8-US"
+        ]
+      },
+      {
+        "anio": 2024,
+        "hallazgos": [
+          "25V357-US"
+        ]
+      },
+      {
+        "anio": 2025,
+        "hallazgos": [
+          "25V357-US"
+        ]
+      },
+      {
+        "anio": 2026,
+        "hallazgos": [],
+        "estado": "sin_hallazgo_confirmado_en_esta_busqueda_no_significa_sin_recalls"
+      }
+    ],
+    "excluidos": [
+      {
+        "fuente": "USEXCL",
+        "motivo": "Recall publicado 2023 pero Mazda3 afectados son 2014-2018."
+      }
+    ]
+  },
+  "aprobaciones": [],
+  "historial_versiones": [
+    {
+      "version": "0.1.0",
+      "fecha": "2026-09-19",
+      "cambio": "Investigación inicial. Sin motor, API, UI ni despliegue; pendiente revisión del usuario y validación técnica."
+    }
+  ]
+}

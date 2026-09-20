@@ -1,0 +1,997 @@
+{
+  "version": "0.1.0",
+  "estado": "borrador_documental_no_decodificador_VIN",
+  "mercado": "MX",
+  "anios_modelo": [
+    2021,
+    2022,
+    2023,
+    2024,
+    2025,
+    2026
+  ],
+  "motores": [
+    {
+      "id": "G25",
+      "nombre": "SKYACTIV-G 2.5 atmosférico",
+      "cilindrada_l": 2.5,
+      "turbo": false,
+      "mhev": false
+    },
+    {
+      "id": "G25T",
+      "nombre": "SKYACTIV-G 2.5 turbo",
+      "cilindrada_l": 2.5,
+      "turbo": true,
+      "mhev": false
+    },
+    {
+      "id": "G20MHEV",
+      "nombre": "SKYACTIV-G / e-SKYACTIV-G 2.0 MHEV",
+      "cilindrada_l": 2,
+      "turbo": false,
+      "mhev": true
+    }
+  ],
+  "transmisiones": {
+    "MT6": "Manual de 6 velocidades",
+    "AT6": "Automática de 6 velocidades"
+  },
+  "alcance_validacion": "Matriz de las fichas localizadas para los seis años y ambas carrocerías; no prueba ausencia de ediciones especiales o actualizaciones intermedias. No aceptar automáticamente combinaciones fuera de esta matriz.",
+  "fuentes": [
+    {
+      "id": "V21S",
+      "anio": 2021,
+      "carroceria": "sedan",
+      "url": "https://www.mazda.mx/siteassets/descargables-2021/mazda3-sedan-2021/ficha-tecnica/ficha-tecnica-mazda3-sd-2021.pdf",
+      "fecha_consulta": "2026-09-19",
+      "tipo": "ficha_oficial_mazda_mexico"
+    },
+    {
+      "id": "V21H",
+      "anio": 2021,
+      "carroceria": "hatchback",
+      "url": "https://www.mazda.mx/siteassets/descargables-2021/mazda3-hatchback-2021/ficha-tecnica/ficha-tecnica-mazda3-hb-2021.pdf",
+      "fecha_consulta": "2026-09-19",
+      "tipo": "ficha_oficial_mazda_mexico"
+    },
+    {
+      "id": "V22S",
+      "anio": 2022,
+      "carroceria": "sedan",
+      "url": "https://www.mazda.mx/siteassets/descargables-2022/mazda3-sedan/ficha-tecnica/ficha-tecnica-mazda-3-sedan-2022-v2.pdf",
+      "fecha_consulta": "2026-09-19",
+      "tipo": "ficha_oficial_mazda_mexico"
+    },
+    {
+      "id": "V22H",
+      "anio": 2022,
+      "carroceria": "hatchback",
+      "url": "https://www.mazda.mx/siteassets/descargables-2022/mazda3-hatchback/ficha-tecnica/ficha-tecnica-mazda-3-hatchback-2022-v2.pdf",
+      "fecha_consulta": "2026-09-19",
+      "tipo": "ficha_oficial_mazda_mexico"
+    },
+    {
+      "id": "V23S",
+      "anio": 2023,
+      "carroceria": "sedan",
+      "url": "https://www.mazda.mx/siteassets/descargables-2023/mazda3-sedan/ficha-tecnica/ficha-tecnica-mazda3-sedan-2023-v01.pdf",
+      "fecha_consulta": "2026-09-19",
+      "tipo": "ficha_oficial_mazda_mexico"
+    },
+    {
+      "id": "V23H",
+      "anio": 2023,
+      "carroceria": "hatchback",
+      "url": "https://www.mazda.mx/siteassets/descargables-2023/mazda3-hatchback/ficha-tecnica/ficha-tecnica-mazda3-hatchback-2023-v01.pdf",
+      "fecha_consulta": "2026-09-19",
+      "tipo": "ficha_oficial_mazda_mexico"
+    },
+    {
+      "id": "V24S",
+      "anio": 2024,
+      "carroceria": "sedan",
+      "url": "https://www.mazda.mx/siteassets/descargables-2024/mazda3-sedan/ficha-tecnica/ficha-tecnica-mazda3-sedan-2024-v01.pdf",
+      "fecha_consulta": "2026-09-19",
+      "tipo": "ficha_oficial_mazda_mexico"
+    },
+    {
+      "id": "V24H",
+      "anio": 2024,
+      "carroceria": "hatchback",
+      "url": "https://www.mazda.mx/siteassets/descargables-2024/mazda3-hatchback/ficha-tecnica/ficha-tecnica-mazda3-hatchback-2024-v01.pdf",
+      "fecha_consulta": "2026-09-19",
+      "tipo": "ficha_oficial_mazda_mexico"
+    },
+    {
+      "id": "V25S",
+      "anio": 2025,
+      "carroceria": "sedan",
+      "url": "https://www.mazda.mx/siteassets/descargables-2025/mazda3-sedan/ficha-tecnica/ficha-tecnica-mazda3-sedan-2025-v01.pdf",
+      "fecha_consulta": "2026-09-19",
+      "tipo": "ficha_oficial_mazda_mexico"
+    },
+    {
+      "id": "V25H",
+      "anio": 2025,
+      "carroceria": "hatchback",
+      "url": "https://www.mazda.mx/siteassets/descargables-2025/mazda3-hatchback/ficha-tecnica/ficha-tecnica-mazda3-hatchback-2025-v01.pdf",
+      "fecha_consulta": "2026-09-19",
+      "tipo": "ficha_oficial_mazda_mexico"
+    },
+    {
+      "id": "V26S",
+      "anio": 2026,
+      "carroceria": "sedan",
+      "url": "https://www.mazda.mx/siteassets/descargables-2026/mazda3-sedan/ficha-tecnica/ficha-tecnica-mazda3-sedan-2026-v04.pdf",
+      "fecha_consulta": "2026-09-19",
+      "tipo": "ficha_oficial_mazda_mexico"
+    },
+    {
+      "id": "V26H",
+      "anio": 2026,
+      "carroceria": "hatchback",
+      "url": "https://www.mazda.mx/siteassets/descargables-2026/mazda3-hatchback/ficha-tecnica/ficha-tecnica-mazda3-hatchback-2026-v01.pdf",
+      "fecha_consulta": "2026-09-19",
+      "tipo": "ficha_oficial_mazda_mexico"
+    }
+  ],
+  "variantes": [
+    {
+      "id": "V21S-i",
+      "anio_modelo": 2021,
+      "carroceria": "sedan",
+      "version": "i",
+      "motor": "G25",
+      "transmisiones": [
+        "MT6",
+        "AT6"
+      ],
+      "traccion": "FWD",
+      "fuente": {
+        "id": "V21S",
+        "url": "https://www.mazda.mx/siteassets/descargables-2021/mazda3-sedan-2021/ficha-tecnica/ficha-tecnica-mazda3-sd-2021.pdf"
+      },
+      "confianza": "alta",
+      "estado": "documentado_en_ficha; confirmar unidad por VIN"
+    },
+    {
+      "id": "V21S-i-sport",
+      "anio_modelo": 2021,
+      "carroceria": "sedan",
+      "version": "i Sport",
+      "motor": "G25",
+      "transmisiones": [
+        "MT6",
+        "AT6"
+      ],
+      "traccion": "FWD",
+      "fuente": {
+        "id": "V21S",
+        "url": "https://www.mazda.mx/siteassets/descargables-2021/mazda3-sedan-2021/ficha-tecnica/ficha-tecnica-mazda3-sd-2021.pdf"
+      },
+      "confianza": "alta",
+      "estado": "documentado_en_ficha; confirmar unidad por VIN"
+    },
+    {
+      "id": "V21S-i-grand-touring",
+      "anio_modelo": 2021,
+      "carroceria": "sedan",
+      "version": "i Grand Touring",
+      "motor": "G25",
+      "transmisiones": [
+        "AT6"
+      ],
+      "traccion": "FWD",
+      "fuente": {
+        "id": "V21S",
+        "url": "https://www.mazda.mx/siteassets/descargables-2021/mazda3-sedan-2021/ficha-tecnica/ficha-tecnica-mazda3-sd-2021.pdf"
+      },
+      "confianza": "alta",
+      "estado": "documentado_en_ficha; confirmar unidad por VIN"
+    },
+    {
+      "id": "V21H-i-sport",
+      "anio_modelo": 2021,
+      "carroceria": "hatchback",
+      "version": "i Sport",
+      "motor": "G25",
+      "transmisiones": [
+        "MT6",
+        "AT6"
+      ],
+      "traccion": "FWD",
+      "fuente": {
+        "id": "V21H",
+        "url": "https://www.mazda.mx/siteassets/descargables-2021/mazda3-hatchback-2021/ficha-tecnica/ficha-tecnica-mazda3-hb-2021.pdf"
+      },
+      "confianza": "alta",
+      "estado": "documentado_en_ficha; confirmar unidad por VIN"
+    },
+    {
+      "id": "V21H-i-grand-touring",
+      "anio_modelo": 2021,
+      "carroceria": "hatchback",
+      "version": "i Grand Touring",
+      "motor": "G25",
+      "transmisiones": [
+        "AT6"
+      ],
+      "traccion": "FWD",
+      "fuente": {
+        "id": "V21H",
+        "url": "https://www.mazda.mx/siteassets/descargables-2021/mazda3-hatchback-2021/ficha-tecnica/ficha-tecnica-mazda3-hb-2021.pdf"
+      },
+      "confianza": "alta",
+      "estado": "documentado_en_ficha; confirmar unidad por VIN"
+    },
+    {
+      "id": "V21H-signature",
+      "anio_modelo": 2021,
+      "carroceria": "hatchback",
+      "version": "Signature",
+      "motor": "G25T",
+      "transmisiones": [
+        "AT6"
+      ],
+      "traccion": "AWD",
+      "fuente": {
+        "id": "V21H",
+        "url": "https://www.mazda.mx/siteassets/descargables-2021/mazda3-hatchback-2021/ficha-tecnica/ficha-tecnica-mazda3-hb-2021.pdf"
+      },
+      "confianza": "alta",
+      "estado": "documentado_en_ficha; confirmar unidad por VIN"
+    },
+    {
+      "id": "V21H-s-grand-touring",
+      "anio_modelo": 2021,
+      "carroceria": "hatchback",
+      "version": "s Grand Touring",
+      "motor": "G25T",
+      "transmisiones": [
+        "AT6"
+      ],
+      "traccion": "AWD",
+      "fuente": {
+        "id": "V21H",
+        "url": "https://www.mazda.mx/siteassets/descargables-2021/mazda3-hatchback-2021/ficha-tecnica/ficha-tecnica-mazda3-hb-2021.pdf"
+      },
+      "confianza": "alta",
+      "estado": "documentado_en_ficha; confirmar unidad por VIN"
+    },
+    {
+      "id": "V22S-i",
+      "anio_modelo": 2022,
+      "carroceria": "sedan",
+      "version": "i",
+      "motor": "G25",
+      "transmisiones": [
+        "MT6",
+        "AT6"
+      ],
+      "traccion": "FWD",
+      "fuente": {
+        "id": "V22S",
+        "url": "https://www.mazda.mx/siteassets/descargables-2022/mazda3-sedan/ficha-tecnica/ficha-tecnica-mazda-3-sedan-2022-v2.pdf"
+      },
+      "confianza": "alta",
+      "estado": "documentado_en_ficha; confirmar unidad por VIN"
+    },
+    {
+      "id": "V22S-i-sport",
+      "anio_modelo": 2022,
+      "carroceria": "sedan",
+      "version": "i Sport",
+      "motor": "G25",
+      "transmisiones": [
+        "MT6",
+        "AT6"
+      ],
+      "traccion": "FWD",
+      "fuente": {
+        "id": "V22S",
+        "url": "https://www.mazda.mx/siteassets/descargables-2022/mazda3-sedan/ficha-tecnica/ficha-tecnica-mazda-3-sedan-2022-v2.pdf"
+      },
+      "confianza": "alta",
+      "estado": "documentado_en_ficha; confirmar unidad por VIN"
+    },
+    {
+      "id": "V22S-i-grand-touring",
+      "anio_modelo": 2022,
+      "carroceria": "sedan",
+      "version": "i Grand Touring",
+      "motor": "G25",
+      "transmisiones": [
+        "AT6"
+      ],
+      "traccion": "FWD",
+      "fuente": {
+        "id": "V22S",
+        "url": "https://www.mazda.mx/siteassets/descargables-2022/mazda3-sedan/ficha-tecnica/ficha-tecnica-mazda-3-sedan-2022-v2.pdf"
+      },
+      "confianza": "alta",
+      "estado": "documentado_en_ficha; confirmar unidad por VIN"
+    },
+    {
+      "id": "V22S-i-sport-mhev",
+      "anio_modelo": 2022,
+      "carroceria": "sedan",
+      "version": "i Sport MHEV",
+      "motor": "G20MHEV",
+      "transmisiones": [
+        "AT6"
+      ],
+      "traccion": "FWD",
+      "fuente": {
+        "id": "V22S",
+        "url": "https://www.mazda.mx/siteassets/descargables-2022/mazda3-sedan/ficha-tecnica/ficha-tecnica-mazda-3-sedan-2022-v2.pdf"
+      },
+      "confianza": "alta",
+      "estado": "documentado_en_ficha; confirmar unidad por VIN"
+    },
+    {
+      "id": "V22S-signature",
+      "anio_modelo": 2022,
+      "carroceria": "sedan",
+      "version": "Signature",
+      "motor": "G25T",
+      "transmisiones": [
+        "AT6"
+      ],
+      "traccion": "AWD",
+      "fuente": {
+        "id": "V22S",
+        "url": "https://www.mazda.mx/siteassets/descargables-2022/mazda3-sedan/ficha-tecnica/ficha-tecnica-mazda-3-sedan-2022-v2.pdf"
+      },
+      "confianza": "alta",
+      "estado": "documentado_en_ficha; confirmar unidad por VIN"
+    },
+    {
+      "id": "V22H-i-sport",
+      "anio_modelo": 2022,
+      "carroceria": "hatchback",
+      "version": "i Sport",
+      "motor": "G25",
+      "transmisiones": [
+        "MT6",
+        "AT6"
+      ],
+      "traccion": "FWD",
+      "fuente": {
+        "id": "V22H",
+        "url": "https://www.mazda.mx/siteassets/descargables-2022/mazda3-hatchback/ficha-tecnica/ficha-tecnica-mazda-3-hatchback-2022-v2.pdf"
+      },
+      "confianza": "alta",
+      "estado": "documentado_en_ficha; confirmar unidad por VIN"
+    },
+    {
+      "id": "V22H-i-grand-touring",
+      "anio_modelo": 2022,
+      "carroceria": "hatchback",
+      "version": "i Grand Touring",
+      "motor": "G25",
+      "transmisiones": [
+        "AT6"
+      ],
+      "traccion": "FWD",
+      "fuente": {
+        "id": "V22H",
+        "url": "https://www.mazda.mx/siteassets/descargables-2022/mazda3-hatchback/ficha-tecnica/ficha-tecnica-mazda-3-hatchback-2022-v2.pdf"
+      },
+      "confianza": "alta",
+      "estado": "documentado_en_ficha; confirmar unidad por VIN"
+    },
+    {
+      "id": "V22H-signature",
+      "anio_modelo": 2022,
+      "carroceria": "hatchback",
+      "version": "Signature",
+      "motor": "G25T",
+      "transmisiones": [
+        "AT6"
+      ],
+      "traccion": "AWD",
+      "fuente": {
+        "id": "V22H",
+        "url": "https://www.mazda.mx/siteassets/descargables-2022/mazda3-hatchback/ficha-tecnica/ficha-tecnica-mazda-3-hatchback-2022-v2.pdf"
+      },
+      "confianza": "alta",
+      "estado": "documentado_en_ficha; confirmar unidad por VIN"
+    },
+    {
+      "id": "V23S-i",
+      "anio_modelo": 2023,
+      "carroceria": "sedan",
+      "version": "i",
+      "motor": "G25",
+      "transmisiones": [
+        "MT6",
+        "AT6"
+      ],
+      "traccion": "FWD",
+      "fuente": {
+        "id": "V23S",
+        "url": "https://www.mazda.mx/siteassets/descargables-2023/mazda3-sedan/ficha-tecnica/ficha-tecnica-mazda3-sedan-2023-v01.pdf"
+      },
+      "confianza": "alta",
+      "estado": "documentado_en_ficha; confirmar unidad por VIN"
+    },
+    {
+      "id": "V23S-i-sport",
+      "anio_modelo": 2023,
+      "carroceria": "sedan",
+      "version": "i Sport",
+      "motor": "G25",
+      "transmisiones": [
+        "MT6",
+        "AT6"
+      ],
+      "traccion": "FWD",
+      "fuente": {
+        "id": "V23S",
+        "url": "https://www.mazda.mx/siteassets/descargables-2023/mazda3-sedan/ficha-tecnica/ficha-tecnica-mazda3-sedan-2023-v01.pdf"
+      },
+      "confianza": "alta",
+      "estado": "documentado_en_ficha; confirmar unidad por VIN"
+    },
+    {
+      "id": "V23S-i-grand-touring",
+      "anio_modelo": 2023,
+      "carroceria": "sedan",
+      "version": "i Grand Touring",
+      "motor": "G25",
+      "transmisiones": [
+        "AT6"
+      ],
+      "traccion": "FWD",
+      "fuente": {
+        "id": "V23S",
+        "url": "https://www.mazda.mx/siteassets/descargables-2023/mazda3-sedan/ficha-tecnica/ficha-tecnica-mazda3-sedan-2023-v01.pdf"
+      },
+      "confianza": "alta",
+      "estado": "documentado_en_ficha; confirmar unidad por VIN"
+    },
+    {
+      "id": "V23S-i-sport-mhev",
+      "anio_modelo": 2023,
+      "carroceria": "sedan",
+      "version": "i Sport MHEV",
+      "motor": "G20MHEV",
+      "transmisiones": [
+        "AT6"
+      ],
+      "traccion": "FWD",
+      "fuente": {
+        "id": "V23S",
+        "url": "https://www.mazda.mx/siteassets/descargables-2023/mazda3-sedan/ficha-tecnica/ficha-tecnica-mazda3-sedan-2023-v01.pdf"
+      },
+      "confianza": "alta",
+      "estado": "documentado_en_ficha; confirmar unidad por VIN"
+    },
+    {
+      "id": "V23S-signature",
+      "anio_modelo": 2023,
+      "carroceria": "sedan",
+      "version": "Signature",
+      "motor": "G25T",
+      "transmisiones": [
+        "AT6"
+      ],
+      "traccion": "AWD",
+      "fuente": {
+        "id": "V23S",
+        "url": "https://www.mazda.mx/siteassets/descargables-2023/mazda3-sedan/ficha-tecnica/ficha-tecnica-mazda3-sedan-2023-v01.pdf"
+      },
+      "confianza": "alta",
+      "estado": "documentado_en_ficha; confirmar unidad por VIN"
+    },
+    {
+      "id": "V23S-carbon-edition",
+      "anio_modelo": 2023,
+      "carroceria": "sedan",
+      "version": "Carbon Edition",
+      "motor": "G25T",
+      "transmisiones": [
+        "AT6"
+      ],
+      "traccion": "AWD",
+      "fuente": {
+        "id": "V23S",
+        "url": "https://www.mazda.mx/siteassets/descargables-2023/mazda3-sedan/ficha-tecnica/ficha-tecnica-mazda3-sedan-2023-v01.pdf"
+      },
+      "confianza": "alta",
+      "estado": "documentado_en_ficha; confirmar unidad por VIN"
+    },
+    {
+      "id": "V23H-i-sport",
+      "anio_modelo": 2023,
+      "carroceria": "hatchback",
+      "version": "i Sport",
+      "motor": "G25",
+      "transmisiones": [
+        "AT6"
+      ],
+      "traccion": "FWD",
+      "fuente": {
+        "id": "V23H",
+        "url": "https://www.mazda.mx/siteassets/descargables-2023/mazda3-hatchback/ficha-tecnica/ficha-tecnica-mazda3-hatchback-2023-v01.pdf"
+      },
+      "confianza": "alta",
+      "estado": "documentado_en_ficha; confirmar unidad por VIN"
+    },
+    {
+      "id": "V23H-i-grand-touring",
+      "anio_modelo": 2023,
+      "carroceria": "hatchback",
+      "version": "i Grand Touring",
+      "motor": "G25",
+      "transmisiones": [
+        "AT6"
+      ],
+      "traccion": "FWD",
+      "fuente": {
+        "id": "V23H",
+        "url": "https://www.mazda.mx/siteassets/descargables-2023/mazda3-hatchback/ficha-tecnica/ficha-tecnica-mazda3-hatchback-2023-v01.pdf"
+      },
+      "confianza": "alta",
+      "estado": "documentado_en_ficha; confirmar unidad por VIN"
+    },
+    {
+      "id": "V23H-signature",
+      "anio_modelo": 2023,
+      "carroceria": "hatchback",
+      "version": "Signature",
+      "motor": "G25T",
+      "transmisiones": [
+        "AT6"
+      ],
+      "traccion": "AWD",
+      "fuente": {
+        "id": "V23H",
+        "url": "https://www.mazda.mx/siteassets/descargables-2023/mazda3-hatchback/ficha-tecnica/ficha-tecnica-mazda3-hatchback-2023-v01.pdf"
+      },
+      "confianza": "alta",
+      "estado": "documentado_en_ficha; confirmar unidad por VIN"
+    },
+    {
+      "id": "V23H-carbon-edition",
+      "anio_modelo": 2023,
+      "carroceria": "hatchback",
+      "version": "Carbon Edition",
+      "motor": "G25T",
+      "transmisiones": [
+        "AT6"
+      ],
+      "traccion": "AWD",
+      "fuente": {
+        "id": "V23H",
+        "url": "https://www.mazda.mx/siteassets/descargables-2023/mazda3-hatchback/ficha-tecnica/ficha-tecnica-mazda3-hatchback-2023-v01.pdf"
+      },
+      "confianza": "alta",
+      "estado": "documentado_en_ficha; confirmar unidad por VIN"
+    },
+    {
+      "id": "V24S-i",
+      "anio_modelo": 2024,
+      "carroceria": "sedan",
+      "version": "i",
+      "motor": "G25",
+      "transmisiones": [
+        "MT6",
+        "AT6"
+      ],
+      "traccion": "FWD",
+      "fuente": {
+        "id": "V24S",
+        "url": "https://www.mazda.mx/siteassets/descargables-2024/mazda3-sedan/ficha-tecnica/ficha-tecnica-mazda3-sedan-2024-v01.pdf"
+      },
+      "confianza": "alta",
+      "estado": "documentado_en_ficha; confirmar unidad por VIN"
+    },
+    {
+      "id": "V24S-i-sport",
+      "anio_modelo": 2024,
+      "carroceria": "sedan",
+      "version": "i Sport",
+      "motor": "G25",
+      "transmisiones": [
+        "MT6",
+        "AT6"
+      ],
+      "traccion": "FWD",
+      "fuente": {
+        "id": "V24S",
+        "url": "https://www.mazda.mx/siteassets/descargables-2024/mazda3-sedan/ficha-tecnica/ficha-tecnica-mazda3-sedan-2024-v01.pdf"
+      },
+      "confianza": "alta",
+      "estado": "documentado_en_ficha; confirmar unidad por VIN"
+    },
+    {
+      "id": "V24S-i-grand-touring",
+      "anio_modelo": 2024,
+      "carroceria": "sedan",
+      "version": "i Grand Touring",
+      "motor": "G25",
+      "transmisiones": [
+        "AT6"
+      ],
+      "traccion": "FWD",
+      "fuente": {
+        "id": "V24S",
+        "url": "https://www.mazda.mx/siteassets/descargables-2024/mazda3-sedan/ficha-tecnica/ficha-tecnica-mazda3-sedan-2024-v01.pdf"
+      },
+      "confianza": "alta",
+      "estado": "documentado_en_ficha; confirmar unidad por VIN"
+    },
+    {
+      "id": "V24S-i-sport-mhev",
+      "anio_modelo": 2024,
+      "carroceria": "sedan",
+      "version": "i Sport MHEV",
+      "motor": "G20MHEV",
+      "transmisiones": [
+        "AT6"
+      ],
+      "traccion": "FWD",
+      "fuente": {
+        "id": "V24S",
+        "url": "https://www.mazda.mx/siteassets/descargables-2024/mazda3-sedan/ficha-tecnica/ficha-tecnica-mazda3-sedan-2024-v01.pdf"
+      },
+      "confianza": "alta",
+      "estado": "documentado_en_ficha; confirmar unidad por VIN"
+    },
+    {
+      "id": "V24S-signature",
+      "anio_modelo": 2024,
+      "carroceria": "sedan",
+      "version": "Signature",
+      "motor": "G25T",
+      "transmisiones": [
+        "AT6"
+      ],
+      "traccion": "AWD",
+      "fuente": {
+        "id": "V24S",
+        "url": "https://www.mazda.mx/siteassets/descargables-2024/mazda3-sedan/ficha-tecnica/ficha-tecnica-mazda3-sedan-2024-v01.pdf"
+      },
+      "confianza": "alta",
+      "estado": "documentado_en_ficha; confirmar unidad por VIN"
+    },
+    {
+      "id": "V24H-i-sport",
+      "anio_modelo": 2024,
+      "carroceria": "hatchback",
+      "version": "i Sport",
+      "motor": "G25",
+      "transmisiones": [
+        "AT6"
+      ],
+      "traccion": "FWD",
+      "fuente": {
+        "id": "V24H",
+        "url": "https://www.mazda.mx/siteassets/descargables-2024/mazda3-hatchback/ficha-tecnica/ficha-tecnica-mazda3-hatchback-2024-v01.pdf"
+      },
+      "confianza": "alta",
+      "estado": "documentado_en_ficha; confirmar unidad por VIN"
+    },
+    {
+      "id": "V24H-i-grand-touring",
+      "anio_modelo": 2024,
+      "carroceria": "hatchback",
+      "version": "i Grand Touring",
+      "motor": "G25",
+      "transmisiones": [
+        "AT6"
+      ],
+      "traccion": "FWD",
+      "fuente": {
+        "id": "V24H",
+        "url": "https://www.mazda.mx/siteassets/descargables-2024/mazda3-hatchback/ficha-tecnica/ficha-tecnica-mazda3-hatchback-2024-v01.pdf"
+      },
+      "confianza": "alta",
+      "estado": "documentado_en_ficha; confirmar unidad por VIN"
+    },
+    {
+      "id": "V24H-signature",
+      "anio_modelo": 2024,
+      "carroceria": "hatchback",
+      "version": "Signature",
+      "motor": "G25T",
+      "transmisiones": [
+        "AT6"
+      ],
+      "traccion": "AWD",
+      "fuente": {
+        "id": "V24H",
+        "url": "https://www.mazda.mx/siteassets/descargables-2024/mazda3-hatchback/ficha-tecnica/ficha-tecnica-mazda3-hatchback-2024-v01.pdf"
+      },
+      "confianza": "alta",
+      "estado": "documentado_en_ficha; confirmar unidad por VIN"
+    },
+    {
+      "id": "V25S-i",
+      "anio_modelo": 2025,
+      "carroceria": "sedan",
+      "version": "i",
+      "motor": "G25",
+      "transmisiones": [
+        "MT6",
+        "AT6"
+      ],
+      "traccion": "FWD",
+      "fuente": {
+        "id": "V25S",
+        "url": "https://www.mazda.mx/siteassets/descargables-2025/mazda3-sedan/ficha-tecnica/ficha-tecnica-mazda3-sedan-2025-v01.pdf"
+      },
+      "confianza": "alta",
+      "estado": "documentado_en_ficha; confirmar unidad por VIN"
+    },
+    {
+      "id": "V25S-i-sport",
+      "anio_modelo": 2025,
+      "carroceria": "sedan",
+      "version": "i Sport",
+      "motor": "G25",
+      "transmisiones": [
+        "AT6"
+      ],
+      "traccion": "FWD",
+      "fuente": {
+        "id": "V25S",
+        "url": "https://www.mazda.mx/siteassets/descargables-2025/mazda3-sedan/ficha-tecnica/ficha-tecnica-mazda3-sedan-2025-v01.pdf"
+      },
+      "confianza": "alta",
+      "estado": "documentado_en_ficha; confirmar unidad por VIN"
+    },
+    {
+      "id": "V25S-i-grand-touring",
+      "anio_modelo": 2025,
+      "carroceria": "sedan",
+      "version": "i Grand Touring",
+      "motor": "G25",
+      "transmisiones": [
+        "AT6"
+      ],
+      "traccion": "FWD",
+      "fuente": {
+        "id": "V25S",
+        "url": "https://www.mazda.mx/siteassets/descargables-2025/mazda3-sedan/ficha-tecnica/ficha-tecnica-mazda3-sedan-2025-v01.pdf"
+      },
+      "confianza": "alta",
+      "estado": "documentado_en_ficha; confirmar unidad por VIN"
+    },
+    {
+      "id": "V25S-signature",
+      "anio_modelo": 2025,
+      "carroceria": "sedan",
+      "version": "Signature",
+      "motor": "G25T",
+      "transmisiones": [
+        "AT6"
+      ],
+      "traccion": "AWD",
+      "fuente": {
+        "id": "V25S",
+        "url": "https://www.mazda.mx/siteassets/descargables-2025/mazda3-sedan/ficha-tecnica/ficha-tecnica-mazda3-sedan-2025-v01.pdf"
+      },
+      "confianza": "alta",
+      "estado": "documentado_en_ficha; confirmar unidad por VIN"
+    },
+    {
+      "id": "V25H-i-sport",
+      "anio_modelo": 2025,
+      "carroceria": "hatchback",
+      "version": "i Sport",
+      "motor": "G25",
+      "transmisiones": [
+        "AT6"
+      ],
+      "traccion": "FWD",
+      "fuente": {
+        "id": "V25H",
+        "url": "https://www.mazda.mx/siteassets/descargables-2025/mazda3-hatchback/ficha-tecnica/ficha-tecnica-mazda3-hatchback-2025-v01.pdf"
+      },
+      "confianza": "alta",
+      "estado": "documentado_en_ficha; confirmar unidad por VIN"
+    },
+    {
+      "id": "V25H-i-grand-touring",
+      "anio_modelo": 2025,
+      "carroceria": "hatchback",
+      "version": "i Grand Touring",
+      "motor": "G25",
+      "transmisiones": [
+        "AT6"
+      ],
+      "traccion": "FWD",
+      "fuente": {
+        "id": "V25H",
+        "url": "https://www.mazda.mx/siteassets/descargables-2025/mazda3-hatchback/ficha-tecnica/ficha-tecnica-mazda3-hatchback-2025-v01.pdf"
+      },
+      "confianza": "alta",
+      "estado": "documentado_en_ficha; confirmar unidad por VIN"
+    },
+    {
+      "id": "V25H-signature",
+      "anio_modelo": 2025,
+      "carroceria": "hatchback",
+      "version": "Signature",
+      "motor": "G25T",
+      "transmisiones": [
+        "AT6"
+      ],
+      "traccion": "AWD",
+      "fuente": {
+        "id": "V25H",
+        "url": "https://www.mazda.mx/siteassets/descargables-2025/mazda3-hatchback/ficha-tecnica/ficha-tecnica-mazda3-hatchback-2025-v01.pdf"
+      },
+      "confianza": "alta",
+      "estado": "documentado_en_ficha; confirmar unidad por VIN"
+    },
+    {
+      "id": "V26S-i",
+      "anio_modelo": 2026,
+      "carroceria": "sedan",
+      "version": "i",
+      "motor": "G25",
+      "transmisiones": [
+        "MT6",
+        "AT6"
+      ],
+      "traccion": "FWD",
+      "fuente": {
+        "id": "V26S",
+        "url": "https://www.mazda.mx/siteassets/descargables-2026/mazda3-sedan/ficha-tecnica/ficha-tecnica-mazda3-sedan-2026-v04.pdf"
+      },
+      "confianza": "alta",
+      "estado": "documentado_en_ficha; confirmar unidad por VIN"
+    },
+    {
+      "id": "V26S-i-sport",
+      "anio_modelo": 2026,
+      "carroceria": "sedan",
+      "version": "i Sport",
+      "motor": "G25",
+      "transmisiones": [
+        "AT6"
+      ],
+      "traccion": "FWD",
+      "fuente": {
+        "id": "V26S",
+        "url": "https://www.mazda.mx/siteassets/descargables-2026/mazda3-sedan/ficha-tecnica/ficha-tecnica-mazda3-sedan-2026-v04.pdf"
+      },
+      "confianza": "alta",
+      "estado": "documentado_en_ficha; confirmar unidad por VIN"
+    },
+    {
+      "id": "V26S-i-grand-touring",
+      "anio_modelo": 2026,
+      "carroceria": "sedan",
+      "version": "i Grand Touring",
+      "motor": "G25",
+      "transmisiones": [
+        "AT6"
+      ],
+      "traccion": "FWD",
+      "fuente": {
+        "id": "V26S",
+        "url": "https://www.mazda.mx/siteassets/descargables-2026/mazda3-sedan/ficha-tecnica/ficha-tecnica-mazda3-sedan-2026-v04.pdf"
+      },
+      "confianza": "alta",
+      "estado": "documentado_en_ficha; confirmar unidad por VIN"
+    },
+    {
+      "id": "V26S-i-grand-touring-mhev",
+      "anio_modelo": 2026,
+      "carroceria": "sedan",
+      "version": "i Grand Touring MHEV",
+      "motor": "G20MHEV",
+      "transmisiones": [
+        "AT6"
+      ],
+      "traccion": "FWD",
+      "fuente": {
+        "id": "V26S",
+        "url": "https://www.mazda.mx/siteassets/descargables-2026/mazda3-sedan/ficha-tecnica/ficha-tecnica-mazda3-sedan-2026-v04.pdf"
+      },
+      "confianza": "alta",
+      "estado": "documentado_en_ficha; confirmar unidad por VIN"
+    },
+    {
+      "id": "V26S-signature",
+      "anio_modelo": 2026,
+      "carroceria": "sedan",
+      "version": "Signature",
+      "motor": "G25T",
+      "transmisiones": [
+        "AT6"
+      ],
+      "traccion": "AWD",
+      "fuente": {
+        "id": "V26S",
+        "url": "https://www.mazda.mx/siteassets/descargables-2026/mazda3-sedan/ficha-tecnica/ficha-tecnica-mazda3-sedan-2026-v04.pdf"
+      },
+      "confianza": "alta",
+      "estado": "documentado_en_ficha; confirmar unidad por VIN"
+    },
+    {
+      "id": "V26H-i-sport",
+      "anio_modelo": 2026,
+      "carroceria": "hatchback",
+      "version": "i Sport",
+      "motor": "G25",
+      "transmisiones": [
+        "AT6"
+      ],
+      "traccion": "FWD",
+      "fuente": {
+        "id": "V26H",
+        "url": "https://www.mazda.mx/siteassets/descargables-2026/mazda3-hatchback/ficha-tecnica/ficha-tecnica-mazda3-hatchback-2026-v01.pdf"
+      },
+      "confianza": "alta",
+      "estado": "documentado_en_ficha; confirmar unidad por VIN"
+    },
+    {
+      "id": "V26H-i-grand-touring",
+      "anio_modelo": 2026,
+      "carroceria": "hatchback",
+      "version": "i Grand Touring",
+      "motor": "G25",
+      "transmisiones": [
+        "AT6"
+      ],
+      "traccion": "FWD",
+      "fuente": {
+        "id": "V26H",
+        "url": "https://www.mazda.mx/siteassets/descargables-2026/mazda3-hatchback/ficha-tecnica/ficha-tecnica-mazda3-hatchback-2026-v01.pdf"
+      },
+      "confianza": "alta",
+      "estado": "documentado_en_ficha; confirmar unidad por VIN"
+    },
+    {
+      "id": "V26H-signature",
+      "anio_modelo": 2026,
+      "carroceria": "hatchback",
+      "version": "Signature",
+      "motor": "G25T",
+      "transmisiones": [
+        "AT6"
+      ],
+      "traccion": "AWD",
+      "fuente": {
+        "id": "V26H",
+        "url": "https://www.mazda.mx/siteassets/descargables-2026/mazda3-hatchback/ficha-tecnica/ficha-tecnica-mazda3-hatchback-2026-v01.pdf"
+      },
+      "confianza": "alta",
+      "estado": "documentado_en_ficha; confirmar unidad por VIN"
+    }
+  ],
+  "ediciones_pendientes": [
+    {
+      "nombre": "100 Aniversario",
+      "carroceria": "sedan",
+      "motor_documentado": "G25",
+      "transmision_documentada": "AT6",
+      "traccion_documentada": "FWD",
+      "anio_modelo": null,
+      "fuente": "https://www.mazda.mx/siteassets/descargables-2021/100-aniversario/ficha-tecnica-mazda3_sd_100_aniv.pdf",
+      "pendiente": "Documento bajo carpeta 2021, sin año modelo explícito en título consultado. Verificar VIN antes de asignar año; no excluir unidades de esta edición."
+    },
+    {
+      "nombre": "100 Aniversario",
+      "carroceria": "hatchback",
+      "motor_documentado": "G25",
+      "transmision_documentada": "AT6",
+      "traccion_documentada": "FWD",
+      "anio_modelo": null,
+      "fuente": "https://www.mazda.mx/siteassets/descargables-2021/100-aniversario/ficha-tecnica-mazda3_hb_100_aniv.pdf",
+      "pendiente": "Confirmar año modelo por VIN; no inferirlo solo por carpeta URL."
+    }
+  ],
+  "notas": [
+    "Polymetal 2021 corresponde a s Grand Touring/Signature hatchback documentados; color no crea un nuevo programa mecánico.",
+    "La ficha 2025 sedán localizada no incluye MHEV. El relanzamiento documentado de i Grand Touring MHEV es modelo 2026, aunque anunciado en octubre de 2025. Año calendario de venta no es año modelo.",
+    "La matriz no determina número de motor, piezas, servofreno ni campañas; se requiere identificación de cada unidad.",
+    "No se incluyen 2.0 no híbridos de otros mercados, diésel, SKYACTIV-X ni Mazda3 anteriores a 2021 o posteriores a 2026."
+  ]
+}
