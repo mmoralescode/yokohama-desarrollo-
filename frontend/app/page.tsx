@@ -4,6 +4,7 @@ import {useMemo, useState} from "react";
 import {api, dateLabel, localDate, numberLabel, useResource} from "@/lib/api";
 import type {Variant, VehicleSummary} from "@/lib/types";
 import {Empty, ErrorBox, Icon, Loading, MutationForm, PageHeader, Stat, TrafficBadge} from "@/components/ui";
+import MazdaMotion from "@/components/mazda-motion";
 
 function AddVehicle({onDone}: {onDone: () => void}) {
   const variants = useResource<{variantes: Variant[]}>("variants");
@@ -46,6 +47,7 @@ export default function FleetPage() {
     {showAdd && <AddVehicle onDone={resource.refresh}/>}
     {resource.error && <ErrorBox message={resource.error} retry={resource.refresh}/>}
     {mutationError && <ErrorBox message={mutationError}/>}{notice && <p className="message success" role="status">{notice}</p>}
+    <MazdaMotion/>
     <div className="stats-grid"><Stat label="UNIDADES EN FLOTILLA" value={resource.data ? vehicles.length : "—"} note="Mazda3 · México"/><Stat label="ATENCIÓN PRIORITARIA" value={resource.data ? urgent : "—"} note="Revisar antes de asignar ruta" accent="red"/><Stat label="VISITAS PROPUESTAS" value={resource.data ? planned : "—"} note="Unidades con fecha provisional"/><Stat label="POR PLANEAR / VALIDAR" value={resource.data ? unvalidated : "—"} note="No equivalen a unidades seguras" accent="amber"/></div>
     <section className="panel fleet-panel"><div className="panel-header"><div><p className="eyebrow">CONTROL DE UNIDADES</p><h2>Tu flotilla, de un vistazo</h2></div><button className="button secondary small-button" onClick={recalculate} disabled={recalculating || resource.loading}><Icon name="refresh" size={16}/>{recalculating ? "Recalculando…" : "Recalcular planes"}</button></div>
       <div className="table-toolbar"><label className="search-field"><span className="sr-only">Buscar unidad</span><Icon name="search" size={18}/><input type="search" placeholder="Buscar placa, versión o VIN…" value={search} onChange={e => setSearch(e.target.value)}/></label><label className="status-filter"><span className="sr-only">Filtrar estado</span><select value={status} onChange={e => setStatus(e.target.value)}><option value="all">Todos los estados</option><option value="red">Atención prioritaria</option><option value="amber">Planear / validar</option><option value="gray">Datos insuficientes</option><option value="green">En ventana</option></select></label><span className="muted small result-count">{visible.length} unidades</span></div>
