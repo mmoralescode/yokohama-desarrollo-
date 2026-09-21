@@ -9,7 +9,7 @@ El código se trasladó a este repositorio independiente sin importar el histori
 ## Qué incluye
 
 - Flotilla con búsqueda y semáforo, detalle por unidad, calendario y bandeja de alertas en español; diseño adaptable a móvil.
-- Visor minimalista del Mazda3 Hatchback **2020** de Ddiaz Design para la demo **no comercial**, con créditos y licencia CC BY-NC-SA 4.0 en un desplegable. Vista previa local; Sketchfab se conecta al pulsar «Ver en 3D». Giro, inclinación, zoom y controles por teclado, sin giro automático. **El movimiento aún requiere internet**; el modo offline espera el archivo 3D descargado oficialmente. No cambia las reglas de mantenimiento. [Fuente, licencia y límites](docs/modelo-3d.md).
+- Visor minimalista del Mazda3 Hatchback **2020** de Ddiaz Design para la demo **no comercial**, con créditos y licencia CC BY-NC-SA 4.0 en un desplegable. Modelo y texturas locales: giro, inclinación, zoom y teclado **sin internet**, al pulsar «Ver en 3D». Sin visor externo ni giro automático; solo renderiza cuando cambia la vista. Requiere mantener el servidor local encendido y un navegador con gráficos 3D. No cambia las reglas de mantenimiento. [Fuente, licencia y límites](docs/modelo-3d.md).
 - Registro de unidades de la matriz mexicana, lecturas fechadas, servicios realizados, fallas/DTC y resolución explícita.
 - Estimación robusta de km/día, confianza y fechas temprana/probable/tardía; vencimiento por lo primero que ocurra: kilometraje o meses naturales.
 - Agrupación de ventanas en la última fecha común posible. Servicios vencidos generan evaluación hoy, sin inventar una prórroga; críticos reciben atención inmediata.
@@ -95,7 +95,7 @@ Para E2E deben estar activos API y panel en 8000/3001, con los 20 vehículos dem
 
 Si OneDrive bloquea la limpieza de resultados de una corrida anterior, usar una carpeta temporal nueva: `npm run test:e2e -- --output RUTA_TEMPORAL_NUEVA`. No se necesita borrar la base ni cambiar permisos de la carpeta del proyecto.
 
-La prueba visual `npm run test:e2e -- mazda-viewer.spec.ts` solo requiere el panel: intercepta la API y simula el protocolo del iframe de Sketchfab sin escribir en la flotilla ni contactar servicios externos. Cubre activación voluntaria, atribución, cámara, teclado, movimiento reducido, errores y timeout, rechazo de mensajes ajenos, cierre y móvil. Para probar otro puerto local, establecer `YOKOHAMA_VISUAL_TEST_URL` (por defecto `http://127.0.0.1:3001`). El componente y sus estilos están aislados en `frontend/components/mazda-viewer.tsx` y `mazda-viewer.module.css`. La disponibilidad real del modelo se comprueba aparte con internet; el mock no acredita disponibilidad de Sketchfab.
+La prueba visual `npm run test:e2e -- mazda-viewer.spec.ts` solo requiere el panel: bloquea conexiones externas antes de abrir cada sesión, carga el **GLB local real** e intercepta las consultas de flotilla sin escribir en la API. Comprueba cámara y zoom por gestos/teclado, créditos, cierre y reapertura, errores, pérdida de contexto WebGL y móvil. Usa Chromium completo con soporte WebGL; no simula un visor externo ni sustituye el automóvil por una figura de prueba. Para probar otro puerto local, establecer `YOKOHAMA_VISUAL_TEST_URL` (por defecto `http://127.0.0.1:3001`). El componente está en `frontend/components/mazda-viewer.tsx`, el renderizador bajo demanda en `frontend/lib/mazda-scene.ts` y el modelo en `frontend/public/models/`.
 
 ## Catálogos, configuración y límites
 

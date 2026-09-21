@@ -1,9 +1,11 @@
 .card { margin-bottom: 27px; overflow: hidden; border: 1px solid var(--line); border-radius: var(--radius); background: var(--white); }
 .header { display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 4px 16px; }
 .header h2 { margin: 0; font-size: 14px; font-weight: 600; letter-spacing: -.3px; }
-.connection { margin-left: auto; color: #697067; font-size: 10px; }
+.header .iconButton { margin-left: auto; }
 .stage { position: relative; height: clamp(240px, 28vw, 360px); min-width: 0; background: #d6d6d6; }
 .poster, .frame { width: 100%; height: 100%; display: block; border: 0; }
+.frame { touch-action: none; cursor: grab; }
+.frame:active { cursor: grabbing; }
 .poster { object-fit: contain; }
 .launch { position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); min-height: 44px; padding: 0 20px; border: 1px solid #ffffff70; border-radius: 24px; background: #18211be8; color: #fff; cursor: pointer; font: inherit; font-size: 12px; }
 .launch:hover { background: #18211b; }

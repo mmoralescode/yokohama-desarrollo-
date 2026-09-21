@@ -7,7 +7,8 @@ export const MAZDA_MODEL = {
   authorUrl: "https://sketchfab.com/ddiaz-design",
   license: "CC BY-NC-SA 4.0",
   licenseUrl: "https://creativecommons.org/licenses/by-nc-sa/4.0/",
-  poster: "/models/mazda3-hatchback-2020-preview.jpg",
+  model: "/models/mazda3-hatchback-2020.glb",
+  poster: "/models/mazda3-hatchback-2020-local-preview.jpg",
   posterWidth: 1024,
   posterHeight: 576,
 } as const;

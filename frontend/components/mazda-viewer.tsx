@@ -1,187 +1,88 @@
 "use client";
 
 import Image from "next/image";
-import {useEffect, useId, useRef, useState} from "react";
+import {useEffect, useId, useRef, useState, type KeyboardEvent} from "react";
 import {MAZDA_MODEL} from "@/lib/mazda-model";
-import {connectSketchfab, type Camera, type Vector3, type ViewerAPI} from "@/lib/sketchfab-viewer";
+import type {CameraAction, MazdaScene} from "@/lib/mazda-scene";
 import styles from "./mazda-viewer.module.css";
 
-type ViewState = "poster" | "loading" | "ready" | "error";
-type Action = "left" | "right" | "above" | "below" | "closer" | "farther" | "reset";
-const controls: {action: Action; label: string; symbol: string}[] = [
+const controls: {action: CameraAction; label: string; symbol: string}[] = [
   {action: "left", label: "Girar a la izquierda", symbol: "↶"},
   {action: "right", label: "Girar a la derecha", symbol: "↷"},
   {action: "above", label: "Ver desde arriba", symbol: "↑"},
   {action: "below", label: "Ver desde abajo", symbol: "↓"},
   {action: "closer", label: "Acercar", symbol: "+"},
   {action: "farther", label: "Alejar", symbol: "−"},
+  {action: "reset", label: "Restablecer vista", symbol: "⟲"},
 ];
-
-function validCamera(camera?: Camera): camera is Camera {
-  return !!camera && [camera.position, camera.target].every(vector =>
-    Array.isArray(vector) && vector.length === 3 && vector.every(Number.isFinite));
-}
-function distance(camera: Camera) {
-  return Math.hypot(...camera.position.map((value, index) => value - camera.target[index]));
-}
 
 export default function MazdaViewer() {
   const id = useId();
-  const frame = useRef<HTMLIFrameElement>(null);
+  const canvas = useRef<HTMLCanvasElement>(null);
+  const scene = useRef<MazdaScene | null>(null);
   const launch = useRef<HTMLButtonElement>(null);
   const firstControl = useRef<HTMLButtonElement>(null);
-  const api = useRef<ViewerAPI | null>(null);
-  const originalCamera = useRef<Camera | null>(null);
   const activated = useRef(false);
-  const controlPending = useRef(false);
-  const controlTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const [active, setActive] = useState(false);
   const [attempt, setAttempt] = useState(0);
-  const [state, setState] = useState<ViewState>("poster");
-  const [cameraReady, setCameraReady] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [controlError, setControlError] = useState<string | null>(null);
+  const [state, setState] = useState<"poster" | "loading" | "ready" | "error">("poster");
 
   useEffect(() => {
-    if (!active || !frame.current) {
+    if (!active || !canvas.current) {
       if (activated.current) launch.current?.focus();
       return;
     }
     let disposed = false;
-    let cameraTimer: ReturnType<typeof setTimeout> | undefined;
-    const disconnect = connectSketchfab(frame.current, {
-      onReady(viewer) {
-        if (disposed) return;
-        api.current = viewer;
-        setState("ready");
-        let settled = false;
-        cameraTimer = setTimeout(() => {
-          if (disposed || settled) return;
-          settled = true;
-          setControlError("Usa los controles dentro del visor; no pudimos preparar los botones de cámara.");
-        }, 5000);
-        viewer.getCameraLookAt((error, camera) => {
-          if (disposed || settled) return;
-          settled = true;
-          clearTimeout(cameraTimer);
-          if (error || !validCamera(camera) || distance(camera) < 0.001) {
-            setControlError("Usa los controles dentro del visor; no pudimos preparar los botones de cámara.");
-            return;
-          }
-          originalCamera.current = {position: [...camera.position], target: [...camera.target]};
-          setCameraReady(true);
-        });
-      },
-      onError() {
-        if (disposed) return;
-        api.current = null;
-        setCameraReady(false);
-        setState("error");
-      },
-    });
+    const target = canvas.current;
+    void import("@/lib/mazda-scene").then(({createMazdaScene}) => {
+      if (disposed) return;
+      scene.current = createMazdaScene(target, {
+        onReady() { if (!disposed) setState("ready"); },
+        onError() { if (!disposed) { scene.current = null; setState("error"); } },
+      });
+    }).catch(() => { if (!disposed) setState("error"); });
     return () => {
       disposed = true;
-      clearTimeout(cameraTimer);
-      clearTimeout(controlTimer.current);
-      controlPending.current = false;
-      disconnect();
-      api.current = null;
-      originalCamera.current = null;
+      scene.current?.dispose();
+      scene.current = null;
     };
   }, [active, attempt]);
 
-  useEffect(() => {
-    if (cameraReady && active) firstControl.current?.focus();
-  }, [cameraReady, active]);
-
+  useEffect(() => { if (state === "ready") firstControl.current?.focus(); }, [state]);
   function open() {
     activated.current = true;
-    setCameraReady(false); setBusy(false); setControlError(null);
     setState("loading"); setActive(true); setAttempt(value => value + 1);
   }
-  function close() {
-    setActive(false); setState("poster"); setCameraReady(false); setBusy(false); setControlError(null);
-  }
-
-  function moveCamera(action: Action) {
-    const viewer = api.current;
-    const initial = originalCamera.current;
-    if (!viewer || !initial || controlPending.current) return;
-    controlPending.current = true;
-    setBusy(true); setControlError(null);
-    let complete = false;
-    const finish = (error?: unknown) => {
-      if (complete || api.current !== viewer) return;
-      complete = true;
-      clearTimeout(controlTimer.current);
-      controlPending.current = false;
-      setBusy(false);
-      if (error) setControlError("La cámara no respondió. Puedes usar el visor o volver a cargarlo.");
-    };
-    controlTimer.current = setTimeout(() => finish(true), 5000);
-    const setCamera = (position: Vector3, target: Vector3) => {
-      if (complete || api.current !== viewer) return;
-      const duration = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 0.25;
-      viewer.setCameraLookAt(position, target, duration, finish);
-    };
-    if (action === "reset") { setCamera([...initial.position], [...initial.target]); return; }
-    viewer.getCameraLookAt((error, camera) => {
-      if (complete || api.current !== viewer) return;
-      if (error || !validCamera(camera)) { finish(true); return; }
-      const delta = camera.position.map((value, index) => value - camera.target[index]) as Vector3;
-      const radius = Math.hypot(...delta);
-      if (radius < 0.001) { finish(true); return; }
-      const next: Vector3 = [...delta];
-      if (action === "left" || action === "right") {
-        const angle = (action === "left" ? 1 : -1) * Math.PI / 6;
-        next[0] = delta[0] * Math.cos(angle) - delta[1] * Math.sin(angle);
-        next[1] = delta[0] * Math.sin(angle) + delta[1] * Math.cos(angle);
-      } else if (action === "above" || action === "below") {
-        // Sketchfab's viewer camera uses Z-up; leave a small horizontal offset.
-        const azimuth = Math.atan2(delta[1], delta[0]);
-        const elevation = (action === "above" ? 1 : -1) * Math.PI * 0.43;
-        next[0] = radius * Math.cos(elevation) * Math.cos(azimuth);
-        next[1] = radius * Math.cos(elevation) * Math.sin(azimuth);
-        next[2] = radius * Math.sin(elevation);
-      } else {
-        const baseRadius = distance(initial);
-        // Native gestures can exceed our button limits; never reverse a zoom.
-        const newRadius = action === "closer"
-          ? Math.min(radius, Math.max(baseRadius * 0.25, radius * 0.8))
-          : Math.max(radius, Math.min(baseRadius * 3, radius * 1.25));
-        for (let index = 0; index < 3; index++) next[index] *= newRadius / radius;
-      }
-      setCamera(next.map((value, index) => value + camera.target[index]) as Vector3, [...camera.target]);
-    });
+  function close() { setActive(false); setState("poster"); }
+  function keyboard(event: KeyboardEvent<HTMLCanvasElement>) {
+    const keys: Record<string, CameraAction> = {ArrowLeft: "left", ArrowRight: "right", ArrowUp: "above", ArrowDown: "below", "+": "closer", "=": "closer", "-": "farther", Home: "reset"};
+    const action = keys[event.key];
+    if (action) { event.preventDefault(); scene.current?.move(action); }
   }
 
   return <section className={styles.card} data-testid="mazda-viewer" data-state={state} aria-labelledby={`${id}-title`}>
     <header className={styles.header}>
       <h2 id={`${id}-title`}>Mazda3</h2>
-      <span className={styles.connection}>3D en línea</span>
       {active && <button type="button" className={styles.iconButton} aria-label="Volver a vista previa" title="Volver a vista previa" onClick={close}><span aria-hidden="true">×</span></button>}
     </header>
-        <div className={styles.stage} id={`${id}-stage`}>
-          {(!active || state === "error") ? <Image className={styles.poster} src={MAZDA_MODEL.poster} width={MAZDA_MODEL.posterWidth} height={MAZDA_MODEL.posterHeight} alt="Vista previa del Mazda3 Hatchback 2020" loading="eager" unoptimized/>
-            : <iframe ref={frame} id={`${id}-frame-${attempt}`} title="Modelo 3D del Mazda3 Hatchback 2020" className={styles.frame} aria-describedby={`${id}-instructions`} allow="fullscreen; autoplay" allowFullScreen referrerPolicy="no-referrer" sandbox="allow-scripts allow-same-origin allow-pointer-lock allow-popups"/>}
-          {!active && <button ref={launch} type="button" className={styles.launch} aria-label="Explorar en 3D" onClick={open} aria-controls={`${id}-stage`}>Ver en 3D</button>}
-        </div>
-        {state === "loading" && <p className={styles.status} role="status">Cargando 3D…</p>}
-        {state === "error" && <div className={styles.error} role="alert"><p>No se pudo cargar el modelo. Revisa la conexión y los gráficos 3D.</p><button type="button" className="button secondary small-button" onClick={open}>Reintentar 3D</button> <a href={MAZDA_MODEL.source} target="_blank" rel="noopener noreferrer">Abrir en Sketchfab ↗</a></div>}
-        {state === "ready" && <div className={styles.controls} role="group" aria-label="Controles de cámara 3D">
-          {controls.map((control, index) => <button ref={index === 0 ? firstControl : undefined} key={control.action} type="button" className={styles.cameraButton} aria-label={control.label} title={control.label} disabled={!cameraReady} aria-disabled={busy || !cameraReady} onClick={() => moveCamera(control.action)}><span aria-hidden="true">{control.symbol}</span></button>)}
-          <button type="button" className={styles.cameraButton} aria-label="Restablecer vista" title="Restablecer vista" disabled={!cameraReady} aria-disabled={busy || !cameraReady} onClick={() => moveCamera("reset")}><span aria-hidden="true">⟲</span></button>
-        </div>}
-        {controlError && <p className={styles.status} role="status">{controlError}</p>}
+    <div className={styles.stage} id={`${id}-stage`}>
+      {(!active || state === "error") ? <Image className={styles.poster} src={MAZDA_MODEL.poster} width={MAZDA_MODEL.posterWidth} height={MAZDA_MODEL.posterHeight} alt="Vista previa del Mazda3 Hatchback 2020" loading="eager" unoptimized/>
+        : <canvas ref={canvas} className={styles.frame} tabIndex={state === "ready" ? 0 : -1} role="img" aria-label="Modelo 3D del Mazda3 Hatchback 2020" aria-describedby={`${id}-instructions`} onKeyDown={keyboard}/>}
+      {!active && <button ref={launch} type="button" className={styles.launch} aria-label="Explorar en 3D" onClick={open} aria-controls={`${id}-stage`}>Ver en 3D</button>}
+    </div>
+    {state === "loading" && <p className={styles.status} role="status">Cargando 3D…</p>}
+    {state === "error" && <div className={styles.error} role="alert"><p>No se pudo abrir el modelo. Reintenta o activa los gráficos 3D del navegador.</p><button type="button" className="button secondary small-button" onClick={open}>Reintentar 3D</button></div>}
+    {state === "ready" && <div className={styles.controls} role="group" aria-label="Controles de cámara 3D">
+      {controls.map((control, index) => <button ref={index === 0 ? firstControl : undefined} key={control.action} type="button" className={styles.cameraButton} aria-label={control.label} title={control.label} onClick={() => scene.current?.move(control.action)}><span aria-hidden="true">{control.symbol}</span></button>)}
+    </div>}
     <footer className={styles.credit}>
-      <p className={styles.hint} id={`${id}-instructions`}>Arrastra para girar · Desliza para acercar</p>
+      <p className={styles.hint} id={`${id}-instructions`}>Arrastra para girar · Desliza para acercar<span className="sr-only">. Con teclado: flechas para girar, más y menos para zoom, Inicio para restablecer.</span></p>
       <details className={styles.references}>
         <summary>Créditos</summary>
         <div>
           <p><a href={MAZDA_MODEL.source} target="_blank" rel="noopener noreferrer">{MAZDA_MODEL.title}</a> por <a href={MAZDA_MODEL.authorUrl} target="_blank" rel="noopener noreferrer">{MAZDA_MODEL.author}</a>.</p>
           <p><a href={MAZDA_MODEL.licenseUrl} target="_blank" rel="noopener noreferrer">{MAZDA_MODEL.license}</a> · Solo uso no comercial.</p>
-          <p>Base: Racing Master / <a href="https://www.facebook.com/p/GM25-100042237200164/" target="_blank" rel="noopener noreferrer">GM25</a>. Sin modificaciones. Decorativo, no diagnóstico.</p>
-          <p>Visor de Sketchfab: al abrirlo se conecta con el proveedor.</p>
+          <p>Base: Racing Master / <a href="https://www.facebook.com/p/GM25-100042237200164/" target="_blank" rel="noopener noreferrer">GM25</a>. Geometría y materiales originales; iluminación local. Decorativo, no diagnóstico.</p>
         </div>
       </details>
     </footer>

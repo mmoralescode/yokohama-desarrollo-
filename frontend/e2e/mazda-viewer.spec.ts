@@ -1,87 +1,132 @@
-import {test as base, expect, type Locator, type Page} from "@playwright/test";
+import {test as base, expect, type Locator, type Page, type Route} from "@playwright/test";
 
 const modelId = "a72de3f3c1604409a7e6fc6be9854c9d";
-const iframeTitle = "Modelo 3D del Mazda3 Hatchback 2020";
-const initialCamera = {position: [4, -6, 3], target: [0, 0, 1]};
-type ApiCall = {member: string; arguments: unknown[]};
-type MockViewer = {mode: "ready" | "silent" | "error" | "initialize-error" | "camera-silent"; requests: string[]; calls: ApiCall[]};
+const modelPath = "/models/mazda3-hatchback-2020.glb";
+const canvasLabel = "Modelo 3D del Mazda3 Hatchback 2020";
+type Camera = {position: number[]; target: number[]};
+type OfflineNetwork = {
+  mode: "normal" | "pending" | "missing";
+  modelRequests: string[];
+  externalRequests: string[];
+  releasePending: () => Promise<void>;
+};
 
-// Exercise the installed SDK's real postMessage protocol without contacting Sketchfab.
-function viewerHtml(mode: MockViewer["mode"], parentOrigin: string) {
-  return `<!doctype html><html lang="es"><meta charset="utf-8"><title>Visor 3D simulado</title>
-    <body style="margin:0;background:#f0f1ed;color:#46534a;display:grid;place-items:center;height:100vh;font:16px sans-serif">
-    <p>Modelo 3D simulado para pruebas</p><script>
-    const instanceId = new URLSearchParams(location.search).get("api_id");
-    const parentOrigin = ${JSON.stringify(parentOrigin)};
-    let camera = ${JSON.stringify(initialCamera)};
-    let cameraReads = 0;
-    window.setMockViewerCamera = next => { camera = next; };
-    const send = message => parent.postMessage({instanceId, ...message}, parentOrigin);
-    addEventListener("message", event => {
-      if (event.source !== parent || event.origin !== parentOrigin || event.data.instanceId !== instanceId) return;
-      const message = event.data;
-      if (message.type === "api.initialize") {
-        send({type: "api.initialize.result", requestId: message.requestId,
-          results: mode === "initialize-error" ? ["Simulated initialization failure"] :
-            [null, "1.12.1", ["start", "stop", "getCameraLookAt", "setCameraLookAt", "setEnableCameraConstraints"]]});
-      } else if (message.type === "api.request") {
-        window.recordMockViewerCall({member: message.member, arguments: message.arguments});
-        if (message.member === "getCameraLookAt" && mode === "camera-silent" && ++cameraReads === 1) return;
-        if (message.member === "setCameraLookAt") {
-          camera = {position: message.arguments[0], target: message.arguments[1]};
-        }
-        send({type: "api.request.result", requestId: message.requestId,
-          results: message.member === "getCameraLookAt" ? [null, camera] : [null]});
-        if (message.member === "start") send({type: "api.event", results: ["viewerready"]});
-      }
-    });
-    const mode = ${JSON.stringify(mode)};
-    if (mode === "ready" || mode === "initialize-error" || mode === "camera-silent") send({type: "api.ready"});
-    if (mode === "error") send({type: "api.ready", error: "Simulated viewer unavailable"});
-    </script></body></html>`;
-}
-
-const test = base.extend<{mockViewer: MockViewer}>({
-  mockViewer: [async ({page, context, baseURL}, use) => {
-    const mock: MockViewer = {mode: "ready", requests: [], calls: []};
-    const unexpected: string[] = [];
+// Every test gets a clean browser context. Successful loads use the real local
+// GLB and its embedded textures; there is no simulated renderer or model.
+const test = base.extend<{offlineNetwork: OfflineNetwork}>({
+  offlineNetwork: [async ({context, baseURL}, use) => {
     const appOrigin = new URL(baseURL!).origin;
-    await page.exposeFunction("recordMockViewerCall", (call: ApiCall) => mock.calls.push(call));
+    const pending: Route[] = [];
+    const unexpectedBackend: string[] = [];
+    const network: OfflineNetwork = {
+      mode: "normal", modelRequests: [], externalRequests: [],
+      async releasePending() {
+        for (const route of pending.splice(0)) {
+          // Closing the viewer can already have aborted the held request.
+          await route.continue().catch(() => {});
+        }
+      },
+    };
     await context.route("**/*", async route => {
       const request = route.request();
       const url = new URL(request.url());
-      if (url.origin === appOrigin) {
-        if (url.pathname.startsWith("/api/backend/")) {
-          if (request.method() === "GET" && url.pathname === "/api/backend/vehicles") {
-            await route.fulfill({json: []});
-            return;
-          }
-          unexpected.push(`${request.method()} ${url.pathname}`);
-          await route.abort("blockedbyclient");
-          return;
-        }
+      if (url.protocol === "data:" || (url.protocol === "blob:" && url.origin === appOrigin)) {
         await route.continue();
         return;
       }
-      if (url.origin === "https://sketchfab.com" && url.pathname === `/models/${modelId}/embed`
-          && request.method() === "GET" && request.isNavigationRequest()) {
-        mock.requests.push(request.url());
-        await route.fulfill({contentType: "text/html", body: viewerHtml(mock.mode, appOrigin)});
+      if (url.origin !== appOrigin) {
+        network.externalRequests.push(request.url());
+        await route.abort("blockedbyclient");
         return;
       }
-      unexpected.push(`${request.method()} ${request.url()}`);
-      await route.abort("blockedbyclient");
+      if (url.pathname.startsWith("/api/backend/")) {
+        if (request.method() === "GET" && url.pathname === "/api/backend/vehicles") {
+          await route.fulfill({json: []});
+        } else {
+          unexpectedBackend.push(`${request.method()} ${url.pathname}`);
+          await route.abort("blockedbyclient");
+        }
+        return;
+      }
+      if (url.pathname === modelPath) {
+        network.modelRequests.push(request.url());
+        if (network.mode === "missing") {
+          await route.fulfill({status: 404, body: "Model unavailable for this failure test"});
+          return;
+        }
+        if (network.mode === "pending") {
+          pending.push(route);
+          return;
+        }
+      }
+      await route.continue();
     });
-    await use(mock);
-    expect(unexpected, "The tests must not reach external services or mutate backend data").toEqual([]);
+    await context.routeWebSocket("**", socket => {
+      const url = new URL(socket.url());
+      if (url.host === new URL(appOrigin).host) socket.connectToServer();
+      else {
+        network.externalRequests.push(socket.url());
+        socket.close();
+      }
+    });
+    await use(network);
+    for (const route of pending.splice(0)) await route.abort("aborted").catch(() => {});
+    expect(network.externalRequests, "The viewer must never attempt external HTTP or WebSocket connections").toEqual([]);
+    expect(unexpectedBackend, "Only the mocked fleet read is allowed; no real backend access or mutations").toEqual([]);
   }, {auto: true}],
 });
 
 test.use({
   baseURL: process.env.YOKOHAMA_VISUAL_TEST_URL || "http://127.0.0.1:3001",
+  channel: "chromium",
   reducedMotion: "no-preference",
   serviceWorkers: "block",
 });
+
+function canvasIn(viewer: Locator) {
+  return viewer.locator(`canvas[aria-label="${canvasLabel}"]`);
+}
+
+async function camera(canvas: Locator): Promise<Camera> {
+  const result = JSON.parse((await canvas.getAttribute("data-camera"))!) as Camera;
+  expect(result.position).toHaveLength(3);
+  expect(result.target).toHaveLength(3);
+  expect([...result.position, ...result.target].every(Number.isFinite)).toBe(true);
+  return result;
+}
+
+function radius(pose: Camera) {
+  return Math.hypot(...pose.position.map((value, index) => value - pose.target[index]));
+}
+
+function expectSameCamera(actual: Camera, expected: Camera) {
+  for (const field of ["position", "target"] as const) {
+    for (let index = 0; index < 3; index++) expect(actual[field][index]).toBeCloseTo(expected[field][index], 6);
+  }
+}
+
+async function renderCount(canvas: Locator) {
+  return Number(await canvas.getAttribute("data-render-count"));
+}
+
+async function ready(viewer: Locator) {
+  await expect(viewer).toHaveAttribute("data-state", "ready", {timeout: 60_000});
+  const canvas = canvasIn(viewer);
+  await expect(canvas).toBeVisible();
+  await expect(canvas).toHaveAttribute("tabindex", "0");
+  await expect.poll(() => renderCount(canvas)).toBeGreaterThan(0);
+  await camera(canvas);
+  await expect(viewer.locator("iframe")).toHaveCount(0);
+  return canvas;
+}
+
+async function openViewer(page: Page) {
+  await page.goto("/");
+  const viewer = page.getByTestId("mazda-viewer");
+  await expect(viewer).toHaveAttribute("data-state", "poster");
+  await viewer.getByRole("button", {name: "Explorar en 3D", exact: true}).click();
+  return viewer;
+}
 
 async function credits(viewer: Locator) {
   const disclosure = viewer.locator("details");
@@ -105,286 +150,228 @@ async function credits(viewer: Locator) {
   await expect(disclosure).toHaveJSProperty("open", wasOpen);
 }
 
-async function openViewer(page: Page) {
-  await page.goto("/");
-  const viewer = page.getByTestId("mazda-viewer");
-  await expect(viewer).toHaveAttribute("data-state", "poster");
-  await viewer.getByRole("button", {name: "Explorar en 3D", exact: true}).click();
-  return viewer;
-}
-
-function cameraCalls(mock: MockViewer) {
-  return mock.calls.filter(call => call.member === "setCameraLookAt");
-}
-
-async function keyboardCamera(viewer: Locator, mock: MockViewer, name: string, key = "Enter") {
-  const before = cameraCalls(mock).length;
+async function moveWithButton(viewer: Locator, name: string, key = "Enter") {
+  const canvas = canvasIn(viewer);
+  const before = await canvas.getAttribute("data-camera");
+  const count = await renderCount(canvas);
   const control = viewer.getByRole("button", {name, exact: true});
   await expect(control).toBeEnabled();
   await control.focus();
   await control.press(key);
-  await expect.poll(() => cameraCalls(mock).length, {timeout: 5_000}).toBe(before + 1);
-  await expect(control).toBeFocused({timeout: 5_000});
-  const call = cameraCalls(mock).at(-1)!;
-  expect(call.arguments[0]).toEqual([expect.any(Number), expect.any(Number), expect.any(Number)]);
-  expect(call.arguments[1]).toEqual([expect.any(Number), expect.any(Number), expect.any(Number)]);
-  expect((call.arguments[0] as number[]).every(Number.isFinite)).toBe(true);
-  expect((call.arguments[1] as number[]).every(Number.isFinite)).toBe(true);
-  return call;
+  await expect(canvas).not.toHaveAttribute("data-camera", before!);
+  await expect.poll(() => renderCount(canvas)).toBeGreaterThan(count);
+  await expect(control).toBeFocused();
+  return camera(canvas);
 }
 
-test("la vista previa y sus créditos no contactan Sketchfab antes del clic", async ({page, mockViewer}, testInfo) => {
+test("la vista previa mínima mantiene los créditos cerrados y no descarga el GLB", async ({page, offlineNetwork}, testInfo) => {
   await page.setViewportSize({width: 1440, height: 1000});
-  await page.goto("/");
-  const viewer = page.getByTestId("mazda-viewer");
-  await expect(viewer).toHaveAttribute("data-state", "poster");
-  await expect(viewer.getByRole("img", {name: "Vista previa del Mazda3 Hatchback 2020", exact: true})).toBeVisible();
-  await expect(viewer.getByRole("button", {name: "Explorar en 3D", exact: true})).toBeEnabled();
-  await expect(viewer.locator("iframe")).toHaveCount(0);
-  await credits(viewer);
-  await expect(page.getByRole("heading", {name: "Aún no hay unidades", exact: true})).toBeVisible();
-  expect(mockViewer.requests).toEqual([]);
-  await page.screenshot({path: testInfo.outputPath("mazda-viewer-desktop.png"), fullPage: true});
-});
-
-test("el panel mínimo oculta los textos extensos y abre los créditos sólo a petición", async ({page, mockViewer}) => {
   await page.goto("/");
   const viewer = page.getByTestId("mazda-viewer");
   const disclosure = viewer.locator("details");
   const summary = disclosure.locator("summary");
-  const source = disclosure.locator(`a[href$="${modelId}"]`);
   await expect(viewer).toHaveAttribute("data-state", "poster");
-  await expect(summary).toHaveText("Créditos");
-  await expect(summary).toBeVisible();
-  await expect(disclosure).toHaveJSProperty("open", false);
-  await expect(source).toBeHidden();
+  await expect(viewer.getByRole("img", {name: "Vista previa del Mazda3 Hatchback 2020", exact: true})).toBeVisible();
   await expect(viewer.getByRole("heading", {name: "Mazda3", exact: true})).toBeVisible();
-  await expect(viewer.locator("p:visible")).toHaveText(["Arrastra para girar · Desliza para acercar"]);
+  await expect(viewer.locator("p:visible")).toHaveCount(1);
+  await expect(viewer.locator("p:visible")).toContainText("Arrastra para girar · Desliza para acercar");
   await expect(viewer.getByRole("heading", {name: "Mazda3 Hatchback.", exact: true})).toHaveCount(0);
-  for (const text of [
-    "EXPLORADOR 3D / MODELO 2020",
-    "Explora su diseño desde cada ángulo.",
-    "Arrastra para girar e inclinar.",
-    "Usa la rueda o dos dedos para acercar.",
-    "También puedes usar los botones de cámara.",
-    "VISTA PREVIA · ACTIVA EL VISOR PARA GIRAR",
-  ]) await expect(viewer.getByText(text, {exact: true})).toBeHidden();
-  await credits(viewer);
+  await expect(viewer.locator("canvas, iframe")).toHaveCount(0);
   await expect(disclosure).toHaveJSProperty("open", false);
+  await credits(viewer);
   await summary.focus();
   await summary.press("Enter");
   await expect(disclosure).toHaveJSProperty("open", true);
   await credits(viewer);
-  await expect(disclosure).toHaveJSProperty("open", true);
   await summary.press("Space");
   await expect(disclosure).toHaveJSProperty("open", false);
-  await expect(source).toBeHidden();
-  await expect(viewer).toHaveAttribute("data-state", "poster");
-  expect(mockViewer.requests).toEqual([]);
+  await expect(page.getByRole("heading", {name: "Aún no hay unidades", exact: true})).toBeVisible();
+  expect(offlineNetwork.modelRequests).toEqual([]);
+  await page.screenshot({path: testInfo.outputPath("mazda-local-preview-desktop.png"), fullPage: true});
 });
 
-test("el teclado abre el modelo, opera todos sus controles y devuelve el foco al cerrar", async ({page, mockViewer}) => {
-  await page.goto("/?skfb_autospin=5&skfb_animation_autoplay=1&skfb_camera=1&skfb_dnt=0&skfb_api_version=0.0.0");
+test("el GLB real carga sin red externa y los gestos cambian la imagen renderizada", async ({page, offlineNetwork}, testInfo) => {
+  await page.setViewportSize({width: 1440, height: 1000});
+  const responsePromise = page.waitForResponse(response =>
+    new URL(response.url()).pathname === modelPath && response.status() === 200);
+  const viewer = await openViewer(page);
+  const canvas = await ready(viewer);
+  const response = await responsePromise;
+  const bytes = await response.body();
+  expect(bytes.subarray(0, 4).toString("ascii")).toBe("glTF");
+  expect(bytes.readUInt32LE(4)).toBe(2);
+  expect(bytes.byteLength).toBeGreaterThan(1_000_000);
+  expect(bytes.readUInt32LE(8)).toBe(bytes.byteLength);
+  expect(offlineNetwork.modelRequests).toHaveLength(1);
+  expect(offlineNetwork.externalRequests).toEqual([]);
+  const initial = await camera(canvas);
+  const before = await canvas.screenshot({path: testInfo.outputPath("mazda-real-initial.png")});
+  const bounds = (await canvas.boundingBox())!;
+  await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(bounds.x + bounds.width * 0.7, bounds.y + bounds.height * 0.6, {steps: 10});
+  await page.mouse.up();
+  await expect.poll(() => camera(canvas)).not.toEqual(initial);
+  const rotated = await canvas.screenshot({path: testInfo.outputPath("mazda-real-rotated.png")});
+  expect(rotated.equals(before), "Dragging must change the actual rendered model").toBe(false);
+  const beforeZoom = radius(await camera(canvas));
+  await page.mouse.wheel(0, -250);
+  await expect.poll(async () => radius(await camera(canvas))).toBeLessThan(beforeZoom);
+  const zoomed = await canvas.screenshot({path: testInfo.outputPath("mazda-real-zoomed.png")});
+  expect(zoomed.equals(rotated), "Zooming must change the actual rendered model").toBe(false);
+  await page.screenshot({path: testInfo.outputPath("mazda-local-ready-desktop.png"), fullPage: true});
+});
+
+test("los siete botones y el teclado del canvas operan la cámara y restauran el foco", async ({page}) => {
+  await page.goto("/");
   const viewer = page.getByTestId("mazda-viewer");
-  const explore = viewer.getByRole("button", {name: "Explorar en 3D", exact: true});
-  await explore.focus();
-  await explore.press("Enter");
-  await expect(viewer).toHaveAttribute("data-state", "ready");
-  await expect(viewer.getByTitle(iframeTitle, {exact: true})).toBeVisible();
-  await credits(viewer);
-  expect(mockViewer.requests).toHaveLength(1);
-  const embed = new URL(mockViewer.requests[0]);
-  expect(embed.searchParams.get("autospin")).toBe("0");
-  expect(embed.searchParams.get("animation_autoplay")).toBe("0");
-  expect(embed.searchParams.get("camera")).toBe("0");
-  expect(embed.searchParams.get("dnt")).toBe("1");
-  expect(embed.searchParams.get("api_version")).toBe("1.12.1");
-  for (const call of cameraCalls(mockViewer)) expect(call.arguments[2]).toBe(0);
+  const launch = viewer.getByRole("button", {name: "Explorar en 3D", exact: true});
+  await launch.focus();
+  await launch.press("Enter");
+  const canvas = await ready(viewer);
+  const initial = await camera(canvas);
+  await expect(viewer.getByRole("button", {name: "Girar a la izquierda", exact: true})).toBeFocused();
   for (const [index, name] of ["Girar a la izquierda", "Girar a la derecha", "Ver desde arriba", "Ver desde abajo", "Acercar", "Alejar"].entries()) {
-    await keyboardCamera(viewer, mockViewer, name, index % 2 ? "Space" : "Enter");
+    await moveWithButton(viewer, name, index % 2 ? "Space" : "Enter");
   }
-  const reset = await keyboardCamera(viewer, mockViewer, "Restablecer vista");
-  expect(reset.arguments[0]).toEqual(initialCamera.position);
-  expect(reset.arguments[1]).toEqual(initialCamera.target);
+  expectSameCamera(await moveWithButton(viewer, "Restablecer vista"), initial);
+  await canvas.focus();
+  const scrollBefore = await page.evaluate(() => scrollY);
+  for (const key of ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Shift+Equal", "-"]) {
+    const before = await canvas.getAttribute("data-camera");
+    await canvas.press(key);
+    await expect(canvas).not.toHaveAttribute("data-camera", before!);
+    await expect(canvas).toBeFocused();
+  }
+  expect(await page.evaluate(() => scrollY)).toBe(scrollBefore);
+  await canvas.press("Home");
+  await expect.poll(async () => {
+    const current = await camera(canvas);
+    return Math.max(...current.position.map((value, index) => Math.abs(value - initial.position[index])),
+      ...current.target.map((value, index) => Math.abs(value - initial.target[index])));
+  }).toBeLessThan(1e-6);
   const close = viewer.getByRole("button", {name: "Volver a vista previa", exact: true});
   await close.focus();
   await close.press("Space");
   await expect(viewer).toHaveAttribute("data-state", "poster");
-  await expect(viewer.locator("iframe")).toHaveCount(0);
-  await expect(explore).toBeFocused();
-  await credits(viewer);
+  await expect(viewer.locator("canvas")).toHaveCount(0);
+  await expect(launch).toBeFocused();
 });
 
-test("una carga incompleta se puede cancelar y un mensaje tardío no revive el visor", async ({page, mockViewer}) => {
-  mockViewer.mode = "silent";
-  const viewer = await openViewer(page);
-  await expect(viewer).toHaveAttribute("data-state", "loading");
-  await expect(viewer.getByRole("status")).toBeVisible();
-  await expect.poll(() => mockViewer.requests.length).toBe(1);
-  await credits(viewer);
-  await page.evaluate(title => {
-    const iframe = document.querySelector<HTMLIFrameElement>(`iframe[title="${title}"]`)!;
-    const saved = {source: iframe.contentWindow, instanceId: new URL(iframe.src).searchParams.get("api_id")};
-    Object.assign(window, {sendLateMockViewerMessage: () => window.dispatchEvent(new MessageEvent("message", {
-      origin: "https://sketchfab.com", source: saved.source,
-      data: {type: "api.ready", instanceId: saved.instanceId, error: "Late callback"},
-    }))});
-  }, iframeTitle);
-  await viewer.getByRole("button", {name: "Volver a vista previa", exact: true}).click();
-  await expect(viewer).toHaveAttribute("data-state", "poster");
-  await page.evaluate(async () => {
-    (window as unknown as {sendLateMockViewerMessage: () => void}).sendLateMockViewerMessage();
-    await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
-  });
-  await expect(viewer).toHaveAttribute("data-state", "poster");
-  await expect(viewer.getByRole("alert")).toHaveCount(0);
-  await expect(viewer.locator("iframe")).toHaveCount(0);
-  mockViewer.mode = "ready";
-  await viewer.getByRole("button", {name: "Explorar en 3D", exact: true}).click();
-  await expect(viewer).toHaveAttribute("data-state", "ready");
-  expect(mockViewer.requests).toHaveLength(2);
-});
-
-for (const failure of ["error", "initialize-error"] as const) {
-  test(`un fallo del proveedor (${failure}) permite reintentar con una instancia nueva`, async ({page, mockViewer}) => {
-    const pageErrors: string[] = [];
-    page.on("pageerror", error => pageErrors.push(error.message));
-    mockViewer.mode = failure;
-    const viewer = await openViewer(page);
-    await expect(viewer).toHaveAttribute("data-state", "error");
-    await expect(viewer.getByRole("alert")).toBeVisible();
-    await credits(viewer);
-    mockViewer.mode = "ready";
-    await viewer.getByRole("button", {name: "Reintentar 3D", exact: true}).click();
-    await expect(viewer).toHaveAttribute("data-state", "ready");
-    await expect(viewer.getByRole("alert")).toHaveCount(0);
-    expect(mockViewer.requests).toHaveLength(2);
-    expect(new URL(mockViewer.requests[0]).searchParams.get("api_id"))
-      .not.toBe(new URL(mockViewer.requests[1]).searchParams.get("api_id"));
-    expect(pageErrors).toEqual([]);
-  });
-}
-
-test("el evento load del iframe no evita el timeout de 25 segundos", async ({page, mockViewer}) => {
-  mockViewer.mode = "silent";
+test("el visor no gira ni renderiza continuamente y respeta movimiento reducido", async ({page}) => {
   await page.clock.install();
   const viewer = await openViewer(page);
-  await expect.poll(() => mockViewer.requests.length).toBe(1);
+  const canvas = await ready(viewer);
+  await canvas.screenshot();
+  const initial = await camera(canvas);
+  let count = await renderCount(canvas);
+  await page.clock.fastForward(5_000);
+  expect(await renderCount(canvas)).toBe(count);
+  expectSameCamera(await camera(canvas), initial);
+  await page.emulateMedia({reducedMotion: "reduce"});
+  await moveWithButton(viewer, "Girar a la izquierda");
+  await canvas.screenshot();
+  count = await renderCount(canvas);
+  const stopped = await camera(canvas);
+  await page.clock.fastForward(5_000);
+  expect(await renderCount(canvas)).toBe(count);
+  expectSameCamera(await camera(canvas), stopped);
+  expectSameCamera(await moveWithButton(viewer, "Restablecer vista"), initial);
+});
+
+test("cancelar una descarga pendiente impide que el visor reaparezca después", async ({page, offlineNetwork}) => {
+  offlineNetwork.mode = "pending";
+  await page.clock.install();
+  const viewer = await openViewer(page);
+  await expect.poll(() => offlineNetwork.modelRequests.length).toBe(1);
   await expect(viewer).toHaveAttribute("data-state", "loading");
   await expect(viewer.getByRole("status")).toBeVisible();
-  await page.clock.fastForward(24_000);
-  await expect(viewer).toHaveAttribute("data-state", "loading");
-  await page.clock.fastForward(2_000);
+  await viewer.getByRole("button", {name: "Volver a vista previa", exact: true}).click();
+  await expect(viewer).toHaveAttribute("data-state", "poster");
+  await offlineNetwork.releasePending();
+  await page.clock.fastForward(35_000);
+  await expect(viewer).toHaveAttribute("data-state", "poster");
+  await expect(viewer.locator("canvas")).toHaveCount(0);
+  await expect(viewer.getByRole("alert")).toHaveCount(0);
+  offlineNetwork.mode = "normal";
+  await viewer.getByRole("button", {name: "Explorar en 3D", exact: true}).click();
+  await ready(viewer);
+});
+
+test("un GLB ausente muestra un error recuperable y reintenta con el archivo real", async ({page, offlineNetwork}) => {
+  offlineNetwork.mode = "missing";
+  const viewer = await openViewer(page);
   await expect(viewer).toHaveAttribute("data-state", "error");
   await expect(viewer.getByRole("alert")).toBeVisible();
+  await expect(viewer.getByRole("img", {name: "Vista previa del Mazda3 Hatchback 2020", exact: true})).toBeVisible();
+  await expect(viewer.locator("canvas")).toHaveCount(0);
+  await credits(viewer);
+  offlineNetwork.mode = "normal";
+  await viewer.getByRole("button", {name: "Reintentar 3D", exact: true}).click();
+  await ready(viewer);
+  expect(offlineNetwork.modelRequests).toHaveLength(2);
+  await expect(viewer.getByRole("alert")).toHaveCount(0);
+});
+
+test("una descarga bloqueada vence a los 30 segundos y permite reintentar", async ({page, offlineNetwork}) => {
+  offlineNetwork.mode = "pending";
+  await page.clock.install();
+  const viewer = await openViewer(page);
+  await expect.poll(() => offlineNetwork.modelRequests.length).toBe(1);
+  await page.clock.fastForward(20_000);
+  await expect(viewer).toHaveAttribute("data-state", "loading");
+  await page.clock.fastForward(11_000);
+  await expect(viewer).toHaveAttribute("data-state", "error");
+  await expect(viewer.getByRole("alert")).toBeVisible();
+  offlineNetwork.mode = "normal";
+  await offlineNetwork.releasePending();
+  await viewer.getByRole("button", {name: "Reintentar 3D", exact: true}).click();
+  await ready(viewer);
+});
+
+test("sin WebGL conserva la vista previa y comunica el problema", async ({page}) => {
+  await page.addInitScript(() => {
+    HTMLCanvasElement.prototype.getContext = new Proxy(HTMLCanvasElement.prototype.getContext, {
+      apply(target, receiver, args) {
+        if (["webgl", "webgl2", "experimental-webgl"].includes(String(args[0]))) return null;
+        return Reflect.apply(target, receiver, args);
+      },
+    });
+  });
+  const viewer = await openViewer(page);
+  await expect(viewer).toHaveAttribute("data-state", "error");
+  await expect(viewer.getByRole("alert")).toBeVisible();
+  await expect(viewer.getByRole("img", {name: "Vista previa del Mazda3 Hatchback 2020", exact: true})).toBeVisible();
+  await expect(viewer.locator("canvas")).toHaveCount(0);
   await expect(viewer.getByRole("button", {name: "Reintentar 3D", exact: true})).toBeEnabled();
   await credits(viewer);
 });
 
-test("rechaza mensajes con origen o ventana distintos del iframe autorizado", async ({page, mockViewer}) => {
-  mockViewer.mode = "silent";
+test("la pérdida real del contexto WebGL se recupera con una nueva carga", async ({page}) => {
   const viewer = await openViewer(page);
-  await expect.poll(() => mockViewer.requests.length).toBe(1);
-  await expect(viewer).toHaveAttribute("data-state", "loading");
-  for (const invalidOrigin of [true, false]) {
-    await page.evaluate(async ({title, invalidOrigin}) => {
-      const iframe = document.querySelector<HTMLIFrameElement>(`iframe[title="${title}"]`)!;
-      window.dispatchEvent(new MessageEvent("message", {
-        origin: invalidOrigin ? "https://untrusted.invalid" : "https://sketchfab.com",
-        source: invalidOrigin ? iframe.contentWindow : window,
-        data: {type: "api.ready", instanceId: new URL(iframe.src).searchParams.get("api_id"), error: "Spoofed failure"},
-      }));
-      await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
-    }, {title: iframeTitle, invalidOrigin});
-    await expect(viewer).toHaveAttribute("data-state", "loading");
-    await expect(viewer.getByRole("alert")).toHaveCount(0);
-  }
+  const canvas = await ready(viewer);
+  const lost = await canvas.evaluate(node => {
+    const context = (node as HTMLCanvasElement).getContext("webgl2");
+    const extension = context?.getExtension("WEBGL_lose_context");
+    if (!extension) return false;
+    extension.loseContext();
+    return true;
+  });
+  expect(lost, "Chromium must expose the real WebGL context-loss extension").toBe(true);
+  await expect(viewer).toHaveAttribute("data-state", "error");
+  await expect(viewer.getByRole("alert")).toBeVisible();
+  await expect(viewer.locator("canvas")).toHaveCount(0);
+  await viewer.getByRole("button", {name: "Reintentar 3D", exact: true}).click();
+  await ready(viewer);
 });
 
-test("movimiento reducido usa cambios de cámara inmediatos incluso al cambiar la preferencia", async ({page, mockViewer}) => {
-  await page.emulateMedia({reducedMotion: "reduce"});
-  const viewer = await openViewer(page);
-  await expect(viewer).toHaveAttribute("data-state", "ready");
-  for (const name of ["Girar a la izquierda", "Ver desde arriba", "Acercar", "Restablecer vista"]) {
-    const call = await keyboardCamera(viewer, mockViewer, name);
-    expect(call.arguments[2]).toBe(0);
-  }
-  await page.emulateMedia({reducedMotion: "no-preference"});
-  const animated = await keyboardCamera(viewer, mockViewer, "Girar a la derecha");
-  expect(animated.arguments[2]).toBeGreaterThan(0);
-  await page.emulateMedia({reducedMotion: "reduce"});
-  const immediate = await keyboardCamera(viewer, mockViewer, "Alejar");
-  expect(immediate.arguments[2]).toBe(0);
-});
-
-test("una lectura inicial de cámara sin respuesta conserva el visor y explica cómo continuar", async ({page, mockViewer}) => {
-  mockViewer.mode = "camera-silent";
-  await page.clock.install();
-  const viewer = await openViewer(page);
-  await expect(viewer).toHaveAttribute("data-state", "ready");
-  await expect.poll(() => mockViewer.calls.filter(call => call.member === "getCameraLookAt").length).toBe(1);
-  const controls = viewer.getByRole("group", {name: "Controles de cámara 3D", exact: true}).getByRole("button");
-  await expect(controls).toHaveCount(7);
-  for (const control of await controls.all()) await expect(control).toBeDisabled();
-  await page.clock.fastForward(6_000);
-  await expect(viewer.getByRole("status")).toContainText("Usa los controles dentro del visor");
-  await expect(viewer).toHaveAttribute("data-state", "ready");
-  await expect(viewer.getByTitle(iframeTitle, {exact: true})).toBeVisible();
-  await expect(viewer.getByRole("alert")).toHaveCount(0);
-  for (const control of await controls.all()) await expect(control).toBeDisabled();
-  await viewer.getByRole("button", {name: "Volver a vista previa", exact: true}).click();
-  mockViewer.mode = "ready";
-  await viewer.getByRole("button", {name: "Explorar en 3D", exact: true}).click();
-  await expect(viewer.getByRole("button", {name: "Acercar", exact: true})).toBeEnabled();
-  await expect(viewer.getByRole("status")).toHaveCount(0);
-});
-
-test("el zoom no invierte su dirección después de gestos fuera de los límites de los botones", async ({page, mockViewer}) => {
-  const viewer = await openViewer(page);
-  await expect(viewer).toHaveAttribute("data-state", "ready");
-  await expect(viewer.getByRole("button", {name: "Acercar", exact: true})).toBeEnabled();
-  const frame = page.frame({url: mockViewer.requests[0]})!;
-  const radius = (position: number[], target: number[]) =>
-    Math.hypot(...position.map((value, index) => value - target[index]));
-  for (const scale of [0.1, 5]) {
-    const camera = {
-      position: initialCamera.position.map((value, index) =>
-        initialCamera.target[index] + scale * (value - initialCamera.target[index])),
-      target: [...initialCamera.target],
-    };
-    const before = radius(camera.position, camera.target);
-    for (const name of ["Acercar", "Alejar"]) {
-      // Change only the mock iframe's camera, as a native drag/pinch would.
-      await frame.evaluate(next => {
-        (window as unknown as {setMockViewerCamera: (camera: typeof next) => void}).setMockViewerCamera(next);
-      }, camera);
-      const call = await keyboardCamera(viewer, mockViewer, name);
-      const after = radius(call.arguments[0] as number[], call.arguments[1] as number[]);
-      expect(call.arguments[1]).toEqual(camera.target);
-      if (name === "Acercar") expect(after).toBeLessThanOrEqual(before + 1e-8);
-      else expect(after).toBeGreaterThanOrEqual(before - 1e-8);
-      if (scale === 5 && name === "Acercar") expect(after).toBeLessThan(before);
-      if (scale === 0.1 && name === "Alejar") expect(after).toBeGreaterThan(before);
-    }
-  }
-  const reset = await keyboardCamera(viewer, mockViewer, "Restablecer vista");
-  expect(reset.arguments[0]).toEqual(initialCamera.position);
-  expect(reset.arguments[1]).toEqual(initialCamera.target);
-});
-
-test("en 375 px el visor y los controles de flotilla permanecen utilizables sin desbordamiento", async ({page, mockViewer}, testInfo) => {
+test("en 375 px el modelo real y los controles de flotilla funcionan sin desbordamiento", async ({page}, testInfo) => {
   await page.setViewportSize({width: 375, height: 812});
-  await page.goto("/");
-  const viewer = page.getByTestId("mazda-viewer");
-  await viewer.scrollIntoViewIfNeeded();
-  await expect(viewer.getByRole("img", {name: "Vista previa del Mazda3 Hatchback 2020", exact: true})).toBeVisible();
-  await credits(viewer);
-  await page.screenshot({path: testInfo.outputPath("mazda-viewer-mobile.png"), fullPage: true});
-  await viewer.getByRole("button", {name: "Explorar en 3D", exact: true}).click();
-  await expect(viewer).toHaveAttribute("data-state", "ready");
-  await keyboardCamera(viewer, mockViewer, "Acercar");
+  const viewer = await openViewer(page);
+  const canvas = await ready(viewer);
+  await moveWithButton(viewer, "Acercar");
   for (const control of [
-    viewer.getByTitle(iframeTitle, {exact: true}),
+    canvas,
     viewer.getByRole("button", {name: "Volver a vista previa", exact: true}),
     page.getByRole("button", {name: "Agregar unidad", exact: true}),
     page.getByRole("button", {name: "Recalcular planes", exact: true}),
@@ -392,12 +379,14 @@ test("en 375 px el visor y los controles de flotilla permanecen utilizables sin 
     page.getByRole("combobox", {name: "Filtrar estado", exact: true}),
   ]) {
     await expect(control).toBeVisible();
-    const bounds = await control.boundingBox();
-    expect(bounds).not.toBeNull();
-    expect(bounds!.x).toBeGreaterThanOrEqual(0);
-    expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(376);
+    const bounds = (await control.boundingBox())!;
+    expect(bounds.x).toBeGreaterThanOrEqual(0);
+    expect(bounds.x + bounds.width).toBeLessThanOrEqual(376);
   }
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+  await credits(viewer);
+  await viewer.scrollIntoViewIfNeeded();
+  await page.screenshot({path: testInfo.outputPath("mazda-local-ready-mobile.png"), fullPage: true});
   await page.getByRole("searchbox", {name: "Buscar unidad", exact: true}).fill("PRUEBA");
   await page.getByRole("combobox", {name: "Filtrar estado", exact: true}).selectOption("red");
   await expect(page.getByRole("heading", {name: "Sin coincidencias", exact: true})).toBeVisible();
