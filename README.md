@@ -9,7 +9,7 @@ El código se trasladó a este repositorio independiente sin importar el histori
 ## Qué incluye
 
 - Flotilla con búsqueda y semáforo, detalle por unidad, calendario y bandeja de alertas en español; diseño adaptable a móvil.
-- Visor 3D del Mazda3 Hatchback **2020** de Ddiaz Design, exclusivamente decorativo para la demo **no comercial**, con atribución CC BY-NC-SA 4.0. Vista previa local; Sketchfab solo se conecta al pulsar «Explorar en 3D». Giro, inclinación, zoom y controles por teclado, sin giro automático. No cambia los años ni reglas de mantenimiento. [Fuente, licencia y límites](docs/modelo-3d.md).
+- Visor minimalista del Mazda3 Hatchback **2020** de Ddiaz Design para la demo **no comercial**, con créditos y licencia CC BY-NC-SA 4.0 en un desplegable. Vista previa local; Sketchfab se conecta al pulsar «Ver en 3D». Giro, inclinación, zoom y controles por teclado, sin giro automático. **El movimiento aún requiere internet**; el modo offline espera el archivo 3D descargado oficialmente. No cambia las reglas de mantenimiento. [Fuente, licencia y límites](docs/modelo-3d.md).
 - Registro de unidades de la matriz mexicana, lecturas fechadas, servicios realizados, fallas/DTC y resolución explícita.
 - Estimación robusta de km/día, confianza y fechas temprana/probable/tardía; vencimiento por lo primero que ocurra: kilometraje o meses naturales.
 - Agrupación de ventanas en la última fecha común posible. Servicios vencidos generan evaluación hoy, sin inventar una prórroga; críticos reciben atención inmediata.

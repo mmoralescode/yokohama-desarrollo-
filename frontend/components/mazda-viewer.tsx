@@ -156,39 +156,34 @@ export default function MazdaViewer() {
   }
 
   return <section className={styles.card} data-testid="mazda-viewer" data-state={state} aria-labelledby={`${id}-title`}>
-    <div className={styles.content}>
-      <div className={styles.copy}>
-        <p className={styles.eyebrow}>EXPLORADOR 3D / MODELO 2020</p>
-        <h2 id={`${id}-title`}>Mazda3<br/>{" "}Hatchback.</h2>
-        <p>Explora su diseño desde cada ángulo.</p>
-        <ul className={styles.instructions} id={`${id}-instructions`}>
-          <li>Arrastra para girar e inclinar.</li>
-          <li>Usa la rueda o dos dedos para acercar.</li>
-          <li>También puedes usar los botones de cámara.</li>
-        </ul>
-        {!active ? <button ref={launch} type="button" className="button primary" onClick={open} aria-controls={`${id}-stage`}>Explorar en 3D <span aria-hidden="true">↗</span></button>
-          : <button type="button" className="button secondary" onClick={close}>Volver a vista previa</button>}
-        <p className={styles.connection}>Al activar el visor te conectas con Sketchfab. Requiere internet y gráficos 3D compatibles.</p>
-      </div>
-      <div className={styles.visual}>
+    <header className={styles.header}>
+      <h2 id={`${id}-title`}>Mazda3</h2>
+      <span className={styles.connection}>3D en línea</span>
+      {active && <button type="button" className={styles.iconButton} aria-label="Volver a vista previa" title="Volver a vista previa" onClick={close}><span aria-hidden="true">×</span></button>}
+    </header>
         <div className={styles.stage} id={`${id}-stage`}>
           {(!active || state === "error") ? <Image className={styles.poster} src={MAZDA_MODEL.poster} width={MAZDA_MODEL.posterWidth} height={MAZDA_MODEL.posterHeight} alt="Vista previa del Mazda3 Hatchback 2020" loading="eager" unoptimized/>
             : <iframe ref={frame} id={`${id}-frame-${attempt}`} title="Modelo 3D del Mazda3 Hatchback 2020" className={styles.frame} aria-describedby={`${id}-instructions`} allow="fullscreen; autoplay" allowFullScreen referrerPolicy="no-referrer" sandbox="allow-scripts allow-same-origin allow-pointer-lock allow-popups"/>}
-          {!active && <span className={styles.previewLabel}>VISTA PREVIA · ACTIVA EL VISOR PARA GIRAR</span>}
+          {!active && <button ref={launch} type="button" className={styles.launch} aria-label="Explorar en 3D" onClick={open} aria-controls={`${id}-stage`}>Ver en 3D</button>}
         </div>
-        {state === "loading" && <p className={styles.status} role="status">Cargando modelo 3D desde Sketchfab…</p>}
-        {state === "error" && <div className={styles.error} role="alert"><p>No se pudo cargar el modelo 3D. Comprueba tu conexión, los permisos de contenido externo y la aceleración gráfica del navegador.</p><button type="button" className="button secondary small-button" onClick={open}>Reintentar 3D</button> <a href={MAZDA_MODEL.source} target="_blank" rel="noopener noreferrer">Abrir modelo en Sketchfab ↗</a></div>}
+        {state === "loading" && <p className={styles.status} role="status">Cargando 3D…</p>}
+        {state === "error" && <div className={styles.error} role="alert"><p>No se pudo cargar el modelo. Revisa la conexión y los gráficos 3D.</p><button type="button" className="button secondary small-button" onClick={open}>Reintentar 3D</button> <a href={MAZDA_MODEL.source} target="_blank" rel="noopener noreferrer">Abrir en Sketchfab ↗</a></div>}
         {state === "ready" && <div className={styles.controls} role="group" aria-label="Controles de cámara 3D">
           {controls.map((control, index) => <button ref={index === 0 ? firstControl : undefined} key={control.action} type="button" className={styles.cameraButton} aria-label={control.label} title={control.label} disabled={!cameraReady} aria-disabled={busy || !cameraReady} onClick={() => moveCamera(control.action)}><span aria-hidden="true">{control.symbol}</span></button>)}
-          <button type="button" className={styles.reset} disabled={!cameraReady} aria-disabled={busy || !cameraReady} onClick={() => moveCamera("reset")}>Restablecer vista</button>
+          <button type="button" className={styles.cameraButton} aria-label="Restablecer vista" title="Restablecer vista" disabled={!cameraReady} aria-disabled={busy || !cameraReady} onClick={() => moveCamera("reset")}><span aria-hidden="true">⟲</span></button>
         </div>}
         {controlError && <p className={styles.status} role="status">{controlError}</p>}
-      </div>
-    </div>
     <footer className={styles.credit}>
-      <p><a href={MAZDA_MODEL.source} target="_blank" rel="noopener noreferrer">{MAZDA_MODEL.title}</a> por <a href={MAZDA_MODEL.authorUrl} target="_blank" rel="noopener noreferrer">{MAZDA_MODEL.author}</a> · <a href={MAZDA_MODEL.licenseUrl} target="_blank" rel="noopener noreferrer">{MAZDA_MODEL.license}</a> · Solo uso no comercial.</p>
-      <p>La publicación declara base en Racing Master; créditos: <a href="https://www.facebook.com/p/GM25-100042237200164/" target="_blank" rel="noopener noreferrer">GM25</a>. Modelo sin modificaciones.</p>
-      <p>Decoración 2020, no modelo oficial ni diagnóstico. El sistema de mantenimiento conserva su alcance Mazda3 México 2021–2026.</p>
+      <p className={styles.hint} id={`${id}-instructions`}>Arrastra para girar · Desliza para acercar</p>
+      <details className={styles.references}>
+        <summary>Créditos</summary>
+        <div>
+          <p><a href={MAZDA_MODEL.source} target="_blank" rel="noopener noreferrer">{MAZDA_MODEL.title}</a> por <a href={MAZDA_MODEL.authorUrl} target="_blank" rel="noopener noreferrer">{MAZDA_MODEL.author}</a>.</p>
+          <p><a href={MAZDA_MODEL.licenseUrl} target="_blank" rel="noopener noreferrer">{MAZDA_MODEL.license}</a> · Solo uso no comercial.</p>
+          <p>Base: Racing Master / <a href="https://www.facebook.com/p/GM25-100042237200164/" target="_blank" rel="noopener noreferrer">GM25</a>. Sin modificaciones. Decorativo, no diagnóstico.</p>
+          <p>Visor de Sketchfab: al abrirlo se conecta con el proveedor.</p>
+        </div>
+      </details>
     </footer>
   </section>;
 }

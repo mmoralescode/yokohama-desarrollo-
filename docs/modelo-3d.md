@@ -10,7 +10,7 @@
 - La descripción declara base en un modelo de **Racing Master**, con créditos a **GM25**: https://www.facebook.com/p/GM25-100042237200164/
 - El usuario confirmó uso no comercial. Esta confirmación no constituye una autorización comercial ni una validación independiente de los derechos de todos los recursos de origen. Antes de distribuir comercialmente el software, retirar este recurso o conseguir autorización suficiente.
 
-Se conservan créditos, enlaces de origen/licencia y las marcas del visor. No se modificó la geometría ni sus materiales; no se descarga, convierte, extrae ni publica un archivo GLB/FBX del modelo. Se usa la inserción pública de Sketchfab. La miniatura también queda bajo la licencia indicada por su publicación; no se relicencia como código del proyecto.
+Se conservan créditos y enlaces de origen/licencia en el desplegable «Créditos», además de las marcas del visor. No se modificó la geometría ni sus materiales; no se descarga, convierte, extrae ni publica un archivo GLB/FBX del modelo. Se usa la inserción pública de Sketchfab. La miniatura también queda bajo la licencia indicada por su publicación; no se relicencia como código del proyecto.
 
 ## Miniatura local
 
@@ -21,13 +21,19 @@ Se conservan créditos, enlaces de origen/licencia y las marcas del visor. No se
 
 ## Funcionamiento y privacidad
 
-La primera pantalla solo muestra la miniatura servida localmente. Al pulsar «Explorar en 3D» se importa el cliente SDK local y se crea una conexión al visor de Sketchfab. Requiere internet, WebGL y que el proveedor mantenga el modelo público. El proveedor recibe los datos de conexión del navegador, pero la integración no le envía vehículos, lecturas, VIN, placas, usuarios ni claves de la API.
+La primera pantalla solo muestra la miniatura servida localmente, el nombre y un botón «Ver en 3D». Al pulsarlo se importa el cliente SDK local y se crea una conexión al visor de Sketchfab. Requiere internet, WebGL y que el proveedor mantenga el modelo público. El proveedor recibe los datos de conexión del navegador, pero la integración no le envía vehículos, lecturas, VIN, placas, usuarios ni claves de la API. Los controles de cámara son iconos con nombres accesibles y los créditos se despliegan bajo demanda.
 
 Se usa `dnt=1` (opción del proveedor para desactivar analítica), `referrerPolicy=no-referrer`, origen fijo, iframe restringido y validación del origen **y** ventana emisora de los mensajes. Se ignoran opciones `skfb_*` de la URL. No se eliminan avisos/marcas del proveedor ni se habilitan cámara, micrófono o AR.
 
-`autospin=0`, `animation_autoplay=0` y `camera=0` evitan giros y transiciones iniciales automáticos. Las transiciones de nuestros botones usan duración cero con movimiento reducido. Los gestos dentro del iframe son controlados por Sketchfab. «Volver a vista previa» descarga el visor y limpia listeners; navegar a otra página también lo desconecta. El timeout de conexión es 25 segundos, con reintento y enlace de origen. Un `load` del iframe no se trata como confirmación de que el modelo 3D esté listo.
+`autospin=0`, `animation_autoplay=0` y `camera=0` evitan giros y transiciones iniciales automáticos. Las transiciones de nuestros botones usan duración cero con movimiento reducido. Los gestos dentro del iframe son controlados por Sketchfab. El botón ×, con nombre accesible «Volver a vista previa», descarga el visor y limpia listeners; navegar a otra página también lo desconecta. El timeout de conexión es 25 segundos, con reintento y enlace de origen. Un `load` del iframe no se trata como confirmación de que el modelo 3D esté listo.
 
 Los botones cambian la cámara, no el vehículo ni el motor predictivo. El catálogo de mantenimiento sigue limitado a **Mazda3 México 2021–2026**; mostrar el recurso 2020 no añade compatibilidad mecánica para ese año.
+
+## Modo offline: pendiente del archivo
+
+La vista previa no sustituye el modelo 3D. El visor actual depende de Sketchfab y **no permite girar el modelo sin internet**. La API pública indica `isDownloadable: true`, pero el endpoint oficial `/v3/models/a72de3f3c1604409a7e6fc6be9854c9d/download` exige autenticación (401 sin sesión). Referencia: https://sketchfab.com/developers/download-api/downloading-models.
+
+Para terminar el modo offline conservando este mismo Mazda, el propietario debe descargarlo mediante «Download 3D Model» y proporcionar el GLB o el ZIP glTF completo (geometría, archivo binario y texturas). No se necesitan contraseñas ni tokens en el repositorio o chat. Con ese archivo autorizado se podrá reemplazar el iframe por un renderizador y recursos locales, y comprobar el giro/zoom bloqueando toda conexión externa desde una sesión de navegador nueva. No se extraen recursos internos del streaming ni se sustituye silenciosamente por otro automóvil.
 
 ## Dependencia y mantenimiento
 

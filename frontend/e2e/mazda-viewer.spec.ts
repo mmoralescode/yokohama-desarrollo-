@@ -84,15 +84,25 @@ test.use({
 });
 
 async function credits(viewer: Locator) {
-  const author = viewer.getByRole("link", {name: "Ddiaz Design", exact: true});
-  await expect(author).toBeVisible();
-  await expect(author).toHaveAttribute("href", "https://sketchfab.com/ddiaz-design");
-  const source = viewer.getByRole("link", {name: "2020 Mazda 3 Hatchback", exact: true});
-  await expect(source).toBeVisible();
-  await expect(source).toHaveAttribute("href", new RegExp(`${modelId}$`));
-  const license = viewer.locator('a[href="https://creativecommons.org/licenses/by-nc-sa/4.0/"]');
-  await expect(license).toBeVisible();
-  await expect(license).toContainText(/CC BY.NC.SA 4\.0/i);
+  const disclosure = viewer.locator("details");
+  const summary = disclosure.locator("summary");
+  await expect(summary).toHaveText("Créditos");
+  const wasOpen = await disclosure.getAttribute("open") !== null;
+  if (!wasOpen) await summary.click();
+  try {
+    const author = disclosure.getByRole("link", {name: "Ddiaz Design", exact: true});
+    await expect(author).toBeVisible();
+    await expect(author).toHaveAttribute("href", "https://sketchfab.com/ddiaz-design");
+    const source = disclosure.getByRole("link", {name: "2020 Mazda 3 Hatchback", exact: true});
+    await expect(source).toBeVisible();
+    await expect(source).toHaveAttribute("href", new RegExp(`${modelId}$`));
+    const license = disclosure.locator('a[href="https://creativecommons.org/licenses/by-nc-sa/4.0/"]');
+    await expect(license).toBeVisible();
+    await expect(license).toContainText(/CC BY.NC.SA 4\.0/i);
+  } finally {
+    if (!wasOpen) await summary.click();
+  }
+  await expect(disclosure).toHaveJSProperty("open", wasOpen);
 }
 
 async function openViewer(page: Page) {
@@ -135,6 +145,42 @@ test("la vista previa y sus créditos no contactan Sketchfab antes del clic", as
   await expect(page.getByRole("heading", {name: "Aún no hay unidades", exact: true})).toBeVisible();
   expect(mockViewer.requests).toEqual([]);
   await page.screenshot({path: testInfo.outputPath("mazda-viewer-desktop.png"), fullPage: true});
+});
+
+test("el panel mínimo oculta los textos extensos y abre los créditos sólo a petición", async ({page, mockViewer}) => {
+  await page.goto("/");
+  const viewer = page.getByTestId("mazda-viewer");
+  const disclosure = viewer.locator("details");
+  const summary = disclosure.locator("summary");
+  const source = disclosure.locator(`a[href$="${modelId}"]`);
+  await expect(viewer).toHaveAttribute("data-state", "poster");
+  await expect(summary).toHaveText("Créditos");
+  await expect(summary).toBeVisible();
+  await expect(disclosure).toHaveJSProperty("open", false);
+  await expect(source).toBeHidden();
+  await expect(viewer.getByRole("heading", {name: "Mazda3", exact: true})).toBeVisible();
+  await expect(viewer.locator("p:visible")).toHaveText(["Arrastra para girar · Desliza para acercar"]);
+  await expect(viewer.getByRole("heading", {name: "Mazda3 Hatchback.", exact: true})).toHaveCount(0);
+  for (const text of [
+    "EXPLORADOR 3D / MODELO 2020",
+    "Explora su diseño desde cada ángulo.",
+    "Arrastra para girar e inclinar.",
+    "Usa la rueda o dos dedos para acercar.",
+    "También puedes usar los botones de cámara.",
+    "VISTA PREVIA · ACTIVA EL VISOR PARA GIRAR",
+  ]) await expect(viewer.getByText(text, {exact: true})).toBeHidden();
+  await credits(viewer);
+  await expect(disclosure).toHaveJSProperty("open", false);
+  await summary.focus();
+  await summary.press("Enter");
+  await expect(disclosure).toHaveJSProperty("open", true);
+  await credits(viewer);
+  await expect(disclosure).toHaveJSProperty("open", true);
+  await summary.press("Space");
+  await expect(disclosure).toHaveJSProperty("open", false);
+  await expect(source).toBeHidden();
+  await expect(viewer).toHaveAttribute("data-state", "poster");
+  expect(mockViewer.requests).toEqual([]);
 });
 
 test("el teclado abre el modelo, opera todos sus controles y devuelve el foco al cerrar", async ({page, mockViewer}) => {
