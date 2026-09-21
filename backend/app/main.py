@@ -7,20 +7,24 @@ import json
 import logging
 import os
 from pathlib import Path
+from typing import Literal
 
 from fastapi import APIRouter, Depends, FastAPI, Header, HTTPException, Query, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from sqlalchemy import func, select
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.orm import Session
 
 from .database import make_database, migrate
 from .engine import matches_service, validate_policy as validate_engine_policy
-from .models import Alert, FaultReport, Notification, OdometerReading, ServiceCatalog, ServiceHistory, Vehicle, VisitPlan
+from .models import Alert, Downtime, FaultReport, Notification, OdometerReading, PlanEvaluation, ServiceCatalog, ServiceHistory, Vehicle, VisitPlan
 from .planner import evaluate, serialize, vehicle_inputs
-from .schemas import FaultCreate, FaultResolve, ReadingCreate, ServiceCreate, VehicleCreate
+from .schemas import DowntimeClose, DowntimeCreate, FaultCreate, FaultResolve, ReadingBatch, ReadingCreate, ServiceCreate, VehicleCreate, VehiclePolicyUpdate
 from .settings import validate_policy
+from .metrics import fleet_metrics
+from .odometer import OdometerConflict, validate_reading
+from .time_utils import as_utc, date_timestamp, local_today, utc_now
 
 ROOT = Path(__file__).resolve().parents[2]
 LOGGER = logging.getLogger("yokohama")
@@ -105,12 +109,30 @@ def create_app(database_url: str | None = None, api_key: str | None = None, poli
     async def integrity_error(_request: Request, _exc: IntegrityError):
         return JSONResponse(status_code=409, content={"detail": "El registro ya existe o entra en conflicto con otro dato. No se guardaron cambios."})
 
+    @application.exception_handler(OperationalError)
+    async def database_unavailable(_request: Request, exc: OperationalError):
+        LOGGER.error("Base temporalmente no disponible (%s)", type(exc.orig).__name__)
+        return JSONResponse(status_code=503, headers={"Retry-After": "5"}, content={"detail": "Base temporalmente no disponible. No se confirmó la operación; consulte el historial antes de reintentar."})
+
+    @application.exception_handler(OdometerConflict)
+    async def reading_conflict(_request: Request, exc: OdometerConflict):
+        return JSONResponse(status_code=409 if exc.duplicate else 422, content={"detail": str(exc)})
+
     @application.middleware("http")
     async def local_protection(request: Request, call_next):
         if request.method in {"POST", "PATCH", "PUT", "DELETE"}:
+            maximum = policy.get("api", {}).get("max_request_bytes", 262_144)
             length = request.headers.get("content-length")
-            if length and (not length.isdigit() or int(length) > 16_384):
+            if length and (not length.isdigit() or int(length) > maximum):
                 return JSONResponse(status_code=413, content={"detail": "Solicitud demasiado grande."})
+            # Bound streamed/chunked bodies as well; Content-Length is not trusted.
+            chunks, size = [], 0
+            async for chunk in request.stream():
+                size += len(chunk)
+                if size > maximum:
+                    return JSONResponse(status_code=413, content={"detail": "Solicitud demasiado grande."})
+                chunks.append(chunk)
+            request._body = b"".join(chunks)
         response = await call_next(request)
         response.headers["Cache-Control"] = "no-store"
         response.headers["X-Content-Type-Options"] = "nosniff"
@@ -152,86 +174,127 @@ def create_app(database_url: str | None = None, api_key: str | None = None, poli
                 "safe_to_defer": alert.get("safe_to_defer", False), "deadline": alert["deadline"],
                 "safety_evaluation": alert.get("safety_evaluation", "needs_assessment"), "assessment_message": alert["message"]}
 
-    def validate_chronology(session: Session, vehicle: Vehicle, when: date, km: float, *, reading: bool):
-        if when > date.today() or when < vehicle.in_service_date:
-            raise HTTPException(422, "La fecha debe estar entre la puesta en servicio y hoy.")
-        points = [(row.date, row.odometer_km) for row in session.scalars(select(OdometerReading).where(OdometerReading.vehicle_id == vehicle.id))]
-        points += [(row.performed_on, row.odometer_km) for row in session.scalars(select(ServiceHistory).where(ServiceHistory.vehicle_id == vehicle.id))]
-        if reading and session.scalar(select(OdometerReading.id).where(OdometerReading.vehicle_id == vehicle.id, OdometerReading.date == when)) is not None:
-            raise HTTPException(409, "Ya existe una lectura de odómetro para esa fecha.")
-        max_daily = policy["usage"]["max_daily_km"]
-        for point_date, point_km in points:
-            delta = (when - point_date).days
-            if delta == 0 and km != point_km:
-                raise HTTPException(422, "Los registros del mismo día deben compartir odómetro; no se sobrescriben lecturas históricas.")
-            if (delta > 0 and km < point_km) or (delta < 0 and km > point_km):
-                raise HTTPException(422, "El kilometraje disminuye o contradice el historial de la unidad.")
-            if delta != 0 and abs(km - point_km) / abs(delta) > max_daily:
-                raise HTTPException(422, "Lectura atípica: supera el máximo diario configurado; confirme el odómetro.")
-        if km > vehicle.current_km and when < date.today():
-            raise HTTPException(422, "El kilometraje histórico supera el kilometraje actual registrado.")
+    def validate_chronology(session: Session, vehicle: Vehicle, when: date, km: float, *, reading: bool, recorded_at=None):
+        points = [{"date": row.date, "km": row.odometer_km, "recorded_at": row.recorded_at,
+                   "time_precision": row.time_precision, "is_reading": True}
+                  for row in session.scalars(select(OdometerReading).where(OdometerReading.vehicle_id == vehicle.id))]
+        points += [{"date": row.performed_on, "km": row.odometer_km}
+                   for row in session.scalars(select(ServiceHistory).where(ServiceHistory.vehicle_id == vehicle.id))]
+        validate_reading(when=when, km=km, points=points, in_service_date=vehicle.in_service_date,
+                         today=local_today(), current_km=vehicle.current_km, max_daily_km=policy["usage"]["max_daily_km"],
+                         reading=reading, recorded_at=recorded_at)
 
     @application.get("/health")
     def health():
         return {"status": "ok", "service": "yokohama", "version": "0.1.0", "mode": policy["mode"], "authentication_configured": bool(key)}
 
     @api.get("/vehicles")
-    def list_vehicles(session: Session = Depends(session_dependency)):
+    def list_vehicles(session: Session = Depends(session_dependency, scope="function")):
         result = []
         for vehicle in session.scalars(select(Vehicle).order_by(Vehicle.id)):
             plan = evaluate(session, vehicle, catalog, policy)
             visits = [visit["planned_date"] for visit in plan["visits"]]
             result.append({**serialize(vehicle), "traffic_light": plan["traffic_light"], "next_visit_date": min(visits) if visits else None,
                            "open_alerts": len(plan["alerts"]), "usage_km_per_day": plan["usage"]["km_per_day"]})
-        return result
+        priority = {"red": 0, "amber": 1, "gray": 2, "green": 3}
+        return sorted(result, key=lambda row: (priority[row["traffic_light"]], row["next_visit_date"] or "9999-12-31", row["id"]))
 
     @api.post("/vehicles", status_code=201)
-    def create_vehicle(payload: VehicleCreate, session: Session = Depends(session_dependency)):
+    def create_vehicle(payload: VehicleCreate, session: Session = Depends(session_dependency, scope="function")):
         variant = variant_map.get(payload.variant_id)
         if not variant or variant["anio_modelo"] != payload.model_year or payload.transmission not in variant["transmisiones"]:
             raise HTTPException(422, "Año, versión o transmisión fuera de la matriz Mazda3 México documentada.")
         if payload.in_service_date.year < payload.model_year - 1:
             raise HTTPException(422, "La puesta en servicio no es compatible con el año modelo.")
-        vehicle = Vehicle(**payload.model_dump(), version=variant["version"], body_style=variant["carroceria"],
+        values = payload.model_dump()
+        if values["severity_multiplier"] is None:
+            values["severity_multiplier"] = float(policy["planning"].get("default_severity_multiplier", 1))
+        vehicle = Vehicle(**values, version=variant["version"], body_style=variant["carroceria"],
                           engine=variant["motor"], drive=variant["traccion"])
         session.add(vehicle)
         session.flush()
-        session.add(OdometerReading(vehicle_id=vehicle.id, date=date.today(), odometer_km=vehicle.current_km))
+        session.add(OdometerReading(vehicle_id=vehicle.id, date=local_today(), odometer_km=vehicle.current_km))
         session.flush()
         evaluate(session, vehicle, catalog, policy)
         return serialize(vehicle)
 
     @api.get("/vehicles/{vehicle_id}")
-    def get_vehicle(vehicle_id: int, session: Session = Depends(session_dependency)):
+    def get_vehicle(vehicle_id: int, session: Session = Depends(session_dependency, scope="function")):
         vehicle = find_vehicle(session, vehicle_id)
         plan = evaluate(session, vehicle, catalog, policy)
         payload = vehicle_inputs(session, vehicle)
         payload["faults"] = [effective_fault(fault, plan) for fault in payload["faults"]]
+        payload["downtime"] = [serialize(row) for row in session.scalars(select(Downtime).where(Downtime.vehicle_id == vehicle_id).order_by(Downtime.started_at.desc()))]
         return payload
 
     @api.get("/vehicles/{vehicle_id}/plan")
-    def get_plan(vehicle_id: int, session: Session = Depends(session_dependency)):
+    def get_plan(vehicle_id: int, session: Session = Depends(session_dependency, scope="function")):
         return evaluate(session, find_vehicle(session, vehicle_id), catalog, policy)
 
-    @api.post("/vehicles/{vehicle_id}/readings", status_code=201)
-    def create_reading(vehicle_id: int, payload: ReadingCreate, session: Session = Depends(session_dependency)):
+    @api.patch("/vehicles/{vehicle_id}")
+    def update_vehicle_policy(vehicle_id: int, payload: VehiclePolicyUpdate, session: Session = Depends(session_dependency, scope="function")):
         vehicle = find_vehicle(session, vehicle_id)
-        validate_chronology(session, vehicle, payload.date, payload.odometer_km, reading=True)
-        row = OdometerReading(vehicle_id=vehicle_id, **payload.model_dump())
+        for field, value in payload.model_dump(exclude_none=True).items():
+            setattr(vehicle, field, value)
+        session.flush()
+        evaluate(session, vehicle, catalog, policy)
+        return serialize(vehicle)
+
+    @api.post("/vehicles/{vehicle_id}/readings", status_code=201)
+    def create_reading(vehicle_id: int, payload: ReadingCreate, session: Session = Depends(session_dependency, scope="function")):
+        vehicle = find_vehicle(session, vehicle_id)
+        validate_chronology(session, vehicle, payload.date, payload.odometer_km, reading=True, recorded_at=payload.recorded_at)
+        row = OdometerReading(vehicle_id=vehicle_id, **payload.storage_values())
         session.add(row)
         vehicle.current_km = max(vehicle.current_km, payload.odometer_km)
         session.flush()
         evaluate(session, vehicle, catalog, policy)
         return serialize(row)
 
+    @api.post("/vehicles/{vehicle_id}/readings/batch")
+    def create_reading_batch(vehicle_id: int, payload: ReadingBatch, session: Session = Depends(session_dependency, scope="function")):
+        """Bounded, all-or-nothing import. Exact replays skip; conflicts roll back."""
+        vehicle = find_vehicle(session, vehicle_id)
+        created, skipped = 0, 0
+        for item in sorted(payload.readings, key=lambda item: item.storage_values()["recorded_at"]):
+            values = item.storage_values()
+            existing = session.scalar(select(OdometerReading).where(OdometerReading.vehicle_id == vehicle_id,
+                                                                    OdometerReading.recorded_at == values["recorded_at"]))
+            if existing is not None:
+                if existing.odometer_km == item.odometer_km and existing.source == item.source and existing.time_precision == values["time_precision"]:
+                    skipped += 1
+                    continue
+                raise HTTPException(409, "La carga contiene una lectura que contradice otra existente. No se guardó ningún registro del lote.")
+            validate_chronology(session, vehicle, item.date, item.odometer_km, reading=True, recorded_at=item.recorded_at)
+            session.add(OdometerReading(vehicle_id=vehicle_id, **values))
+            vehicle.current_km = max(vehicle.current_km, item.odometer_km)
+            session.flush()
+            created += 1
+        evaluate(session, vehicle, catalog, policy)
+        return {"created": created, "skipped": skipped, "vehicle_id": vehicle_id, "atomic": True}
+
     @api.post("/vehicles/{vehicle_id}/services", status_code=201)
-    def create_service(vehicle_id: int, payload: ServiceCreate, session: Session = Depends(session_dependency)):
+    def create_service(vehicle_id: int, payload: ServiceCreate, session: Session = Depends(session_dependency, scope="function")):
         vehicle = find_vehicle(session, vehicle_id)
         service = service_map.get(payload.service_id)
         if service is None or not matches_service(serialize(vehicle), service):
             raise HTTPException(422, "Servicio desconocido o no aplicable al motor, transmisión o régimen registrado.")
         validate_chronology(session, vehicle, payload.performed_on, payload.odometer_km, reading=False)
+        if payload.fault_id is not None:
+            fault = session.get(FaultReport, payload.fault_id)
+            if fault is None or fault.vehicle_id != vehicle_id or (fault.service_id and fault.service_id != payload.service_id):
+                raise HTTPException(422, "La falla vinculada debe pertenecer a esta unidad y al mismo componente.")
+            if fault.reported_on > payload.performed_on:
+                raise HTTPException(422, "El servicio correctivo no puede ser anterior al reporte de falla.")
+        # Avoid hindsight: only a snapshot made BEFORE the service's local day.
+        prior = session.scalar(select(PlanEvaluation).where(PlanEvaluation.vehicle_id == vehicle_id,
+                              PlanEvaluation.evaluated_at < date_timestamp(payload.performed_on)).order_by(PlanEvaluation.evaluated_at.desc(), PlanEvaluation.id.desc()).limit(1))
+        prediction = next((item for item in prior.result["services"] if item["service_id"] == payload.service_id), None) if prior else None
+        due = date.fromisoformat(prediction["due_date"]) if prediction and prediction.get("due_date") else None
         row = ServiceHistory(vehicle_id=vehicle_id, **payload.model_dump(), catalog_snapshot=service)
+        row.predicted_due_date = due
+        row.prediction_error_days = (payload.performed_on - due).days if due else None
+        row.prediction_evaluation_id = prior.id if due else None
         session.add(row)
         vehicle.current_km = max(vehicle.current_km, payload.odometer_km)
         session.flush()
@@ -239,16 +302,18 @@ def create_app(database_url: str | None = None, api_key: str | None = None, poli
         return serialize(row)
 
     @api.post("/vehicles/{vehicle_id}/faults", status_code=201)
-    def create_fault(vehicle_id: int, payload: FaultCreate, session: Session = Depends(session_dependency)):
+    def create_fault(vehicle_id: int, payload: FaultCreate, session: Session = Depends(session_dependency, scope="function")):
         vehicle = find_vehicle(session, vehicle_id)
-        row = FaultReport(vehicle_id=vehicle_id, reported_on=date.today(), **payload.model_dump())
+        if payload.service_id and (payload.service_id not in service_map or not matches_service(serialize(vehicle), service_map[payload.service_id])):
+            raise HTTPException(422, "El componente reportado no corresponde a esta unidad.")
+        row = FaultReport(vehicle_id=vehicle_id, reported_on=local_today(), **payload.model_dump())
         session.add(row)
         session.flush()
         plan = evaluate(session, vehicle, catalog, policy)
         return effective_fault(serialize(row), plan)
 
     @api.patch("/faults/{fault_id}/resolve")
-    def resolve_fault(fault_id: int, payload: FaultResolve, session: Session = Depends(session_dependency)):
+    def resolve_fault(fault_id: int, payload: FaultResolve, session: Session = Depends(session_dependency, scope="function")):
         row = session.get(FaultReport, fault_id)
         if row is None:
             raise HTTPException(404, "Reporte de falla no encontrado.")
@@ -256,13 +321,13 @@ def create_app(database_url: str | None = None, api_key: str | None = None, poli
             raise HTTPException(409, "La falla ya fue resuelta; el historial se conserva sin sobrescribirlo.")
         row.status = "resolved"
         row.resolution_notes = payload.resolution_notes
-        row.resolved_on = date.today()
+        row.resolved_on = local_today()
         session.flush()
         evaluate(session, find_vehicle(session, row.vehicle_id), catalog, policy)
         return serialize(row)
 
     @api.get("/calendar")
-    def calendar(start: date = Query(...), end: date = Query(...), session: Session = Depends(session_dependency)):
+    def calendar(start: date = Query(...), end: date = Query(...), session: Session = Depends(session_dependency, scope="function")):
         if end < start or (end - start).days > 366:
             raise HTTPException(422, "Seleccione un rango ordenado de hasta 366 días.")
         for vehicle in session.scalars(select(Vehicle)):
@@ -271,15 +336,55 @@ def create_app(database_url: str | None = None, api_key: str | None = None, poli
         return [{**visit.payload, "id": visit.id, "vehicle_id": vehicle.id, "plate": vehicle.plate, "version": vehicle.version} for visit, vehicle in rows]
 
     @api.get("/alerts")
-    def alerts(session: Session = Depends(session_dependency)):
+    def alerts(session: Session = Depends(session_dependency, scope="function")):
         for vehicle in session.scalars(select(Vehicle)):
             evaluate(session, vehicle, catalog, policy)
         rows = session.execute(select(Alert, Vehicle).join(Vehicle).where(Alert.status == "open").order_by(Alert.id))
         return [{**alert.payload, "id": alert.id, "status": alert.status, "plate": vehicle.plate} for alert, vehicle in rows]
 
     @api.get("/notifications")
-    def notifications(session: Session = Depends(session_dependency)):
+    def notifications(session: Session = Depends(session_dependency, scope="function")):
         return [serialize(row) for row in session.scalars(select(Notification).order_by(Notification.id.desc()).limit(500))]
+
+    @api.get("/metrics")
+    def metrics(synthetic: Literal["true", "false", "null"] = Query("false"), session: Session = Depends(session_dependency, scope="function")):
+        return fleet_metrics(session, {"true": True, "false": False, "null": None}[synthetic])
+
+    def check_downtime(session: Session, vehicle: Vehicle, start, end, exclude_id=None):
+        from .time_utils import MEXICO_CITY
+        if start.astimezone(MEXICO_CITY).date() < vehicle.in_service_date:
+            raise HTTPException(422, "El paro no puede comenzar antes de la puesta en servicio.")
+        for other in session.scalars(select(Downtime).where(Downtime.vehicle_id == vehicle.id)):
+            if other.id == exclude_id:
+                continue
+            if (end is None or as_utc(other.started_at) < end) and (other.ended_at is None or start < as_utc(other.ended_at)):
+                raise HTTPException(409, "El intervalo se traslapa con otro paro registrado. No se suman horas duplicadas.")
+
+    @api.post("/vehicles/{vehicle_id}/downtime", status_code=201)
+    def create_downtime(vehicle_id: int, payload: DowntimeCreate, session: Session = Depends(session_dependency, scope="function")):
+        vehicle = find_vehicle(session, vehicle_id)
+        check_downtime(session, vehicle, payload.started_at, payload.ended_at)
+        row = Downtime(vehicle_id=vehicle_id, **payload.model_dump())
+        session.add(row)
+        session.flush()
+        return serialize(row)
+
+    @api.patch("/vehicles/{vehicle_id}/downtime/{downtime_id}")
+    def close_downtime(vehicle_id: int, downtime_id: int, payload: DowntimeClose, session: Session = Depends(session_dependency, scope="function")):
+        vehicle = find_vehicle(session, vehicle_id)
+        row = session.get(Downtime, downtime_id)
+        if row is None or row.vehicle_id != vehicle_id:
+            raise HTTPException(404, "Registro fuera de servicio no encontrado.")
+        if row.ended_at is not None:
+            raise HTTPException(409, "El paro ya está cerrado. El historial no se sobrescribe.")
+        if payload.ended_at <= as_utc(row.started_at):
+            raise HTTPException(422, "El fin debe ser posterior al inicio.")
+        check_downtime(session, vehicle, as_utc(row.started_at), payload.ended_at, exclude_id=row.id)
+        row.ended_at = payload.ended_at
+        if payload.notes is not None:
+            row.notes = payload.notes
+        session.flush()
+        return serialize(row)
 
     @api.get("/catalog")
     def get_catalog():

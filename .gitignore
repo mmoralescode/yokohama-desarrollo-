@@ -8,6 +8,7 @@
 **/*.db
 **/*.db-wal
 **/*.db-shm
+**/*.bak
 **/*.sqlite*
 **/node_modules/
 **/.next/

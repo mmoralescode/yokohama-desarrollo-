@@ -1,5 +1,6 @@
 "use client";
 import {useCallback, useEffect, useRef, useState} from "react";
+export {localDate, localDateTime, mexicoDateTimeToISO, dateTimeLabel} from "./dates";
 
 function errorMessage(detail: unknown): string {
   if (typeof detail === "string") return detail;
@@ -40,13 +41,10 @@ export function useResource<T>(path: string) {
   }, [path, revision]);
   return {data, error, loading, refresh};
 }
-export function localDate(date = new Date()): string {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-}
 export function dateLabel(value?: string | null): string {
   if (!value) return "Sin fecha validada";
-  const date = new Date(`${value.slice(0, 10)}T12:00:00`);
-  return Number.isNaN(date.getTime()) ? "Sin fecha validada" : new Intl.DateTimeFormat("es-MX", {day: "2-digit", month: "short", year: "numeric"}).format(date);
+  const date = new Date(`${value.slice(0, 10)}T12:00:00Z`);
+  return Number.isNaN(date.getTime()) ? "Sin fecha validada" : new Intl.DateTimeFormat("es-MX", {timeZone: "UTC", day: "2-digit", month: "short", year: "numeric"}).format(date);
 }
 export function numberLabel(value?: number | null, decimals = 0): string {
   return value == null || !Number.isFinite(value) ? "—" : new Intl.NumberFormat("es-MX", {maximumFractionDigits: decimals}).format(value);

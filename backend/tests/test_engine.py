@@ -262,7 +262,7 @@ def test_zero_advance_operational_without_approval(vehicle, policy):
     assert result["window_start"] == result["window_end"]
 
 
-@pytest.mark.parametrize("days,expected", [(31, None), (30, 30), (16, 30), (15, 15), (8, 15), (7, 7), (4, 7), (3, 3), (0, 3), (-1, 3)])
+@pytest.mark.parametrize("days,expected", [(31, None), (30, 30), (15, 30), (14, 14), (8, 14), (7, 7), (3, 7), (0, 7), (-1, 0)])
 def test_alert_thresholds_against_limit(vehicle, policy, days, expected):
     # Zero-motion fixture makes the month criterion exact, independent of usage.
     due = TODAY + timedelta(days=days)
@@ -519,3 +519,188 @@ def test_workshop_buffer_does_not_invent_due_date_before_replacement(vehicle, po
     policy["planning"]["workshop_buffer_days"] = 1000
     result = plan(vehicle, policy, history=service_history(km=20000, performed=TODAY.isoformat()))["services"][0]
     assert result["latest_entry_date"] == TODAY.isoformat()
+
+
+def test_sparse_readings_use_fleet_rate_with_low_confidence(policy):
+    result = estimate_usage(readings(count=2), policy, TODAY, fleet_usage_km_per_day=65)
+    assert result["km_per_day"] == 65
+    assert result["source"] == "fleet"
+    assert result["fallback_used"] is True
+    assert result["confidence"] == "baja"
+    assert result["high_km_per_day"] >= 100  # Sparse high use remains visible.
+    assert "flotilla" in result["explanation"]
+
+
+def test_observed_usage_does_not_get_replaced_by_fleet(policy):
+    result = estimate_usage(readings(), policy, TODAY, fleet_usage_km_per_day=65)
+    assert result["km_per_day"] == 100
+    assert result["source"] == "observed"
+    assert result["fallback_used"] is False
+
+
+def test_stationary_fleet_is_distinct_from_missing_fleet(policy):
+    assert estimate_usage([], policy, TODAY, 0)["km_per_day"] == 0
+    assert estimate_usage([], policy, TODAY)["source"] == "default"
+
+
+@pytest.mark.parametrize("rate", [-1, True, float("nan"), float("inf"), 1201])
+def test_invalid_fleet_fallback_fails_closed(policy, rate):
+    with pytest.raises(ValueError, match="flotilla"):
+        estimate_usage([], policy, TODAY, rate)
+
+
+def test_plan_accepts_fleet_fallback(vehicle, policy):
+    result = build_plan(vehicle, [], service_history(), [], {"servicios": [rule()]}, policy, TODAY, 65)
+    assert result["usage"]["km_per_day"] == 65
+    assert result["usage"]["source"] == "fleet"
+
+
+def test_latest_precise_reading_per_day_is_not_a_conflict(policy):
+    data = []
+    for item in readings():
+        data.extend([
+            {**item, "odometer_km": item["odometer_km"] - 50, "recorded_at": item["date"] + "T08:00:00-06:00", "time_precision": "timestamp"},
+            {**item, "recorded_at": item["date"] + "T18:00:00-06:00", "time_precision": "timestamp"},
+            {**item, "odometer_km": item["odometer_km"] - 25, "time_precision": "date"},
+        ])
+    result = estimate_usage(data, policy, TODAY)
+    assert result["km_per_day"] == 100
+    assert result["rejected_readings"] == 0
+    assert result["confidence"] == "alta"
+
+
+def test_same_instant_conflicting_precise_readings_rejected(policy):
+    data = readings()
+    data[-1].update(recorded_at=TODAY.isoformat() + "T18:00:00-06:00", time_precision="timestamp")
+    data.append({**data[-1], "odometer_km": 20100})
+    result = estimate_usage(data, policy, TODAY)
+    assert result["rejected_readings"] == 2
+
+
+@pytest.mark.parametrize("days", [20, 90])
+def test_days_and_months_take_first_without_converting_months(vehicle, policy, days):
+    result = plan(vehicle, policy, data=readings(rate=0),
+                  services=[rule(intervalo_km=None, intervalo_meses=1, intervalo_dias=days)],
+                  history=service_history(performed="2026-08-01"))["services"][0]
+    assert result["due_date"] == ("2026-08-21" if days == 20 else "2026-09-01")
+
+
+def test_days_only_rule_is_forecastable(vehicle, policy):
+    result = plan(vehicle, policy, services=[rule(intervalo_km=None, intervalo_meses=None, intervalo_dias=60)])["services"][0]
+    assert result["due_date"] == "2026-09-30"
+    assert result["prediction"] == {"optimistic": "2026-09-30", "probable": "2026-09-30", "pessimistic": "2026-09-30"}
+
+
+@pytest.mark.parametrize("days", [0, -1, .5, True, float("nan")])
+def test_invalid_days_interval_rejected(vehicle, policy, days):
+    with pytest.raises(ValueError, match="Intervalo"):
+        plan(vehicle, policy, services=[rule(intervalo_dias=days)])
+
+
+def test_severity_factor_shortens_distance_and_time(vehicle, policy):
+    vehicle["severity_multiplier"] = .5
+    result = plan(vehicle, policy, services=[rule(intervalo_dias=120)])["services"][0]
+    assert result["due_odometer"] == 20000
+    assert result["due_date"] == TODAY.isoformat()
+    assert result["severity_multiplier"] == .5
+    stationary = plan(vehicle, policy, data=readings(rate=0), services=[rule(intervalo_km=None, intervalo_dias=120)])["services"][0]
+    assert stationary["due_date"] == "2026-09-30"  # 120 * .5 days since Aug 1.
+
+
+def test_severity_factor_preserves_actual_calendar_duration(vehicle, policy):
+    vehicle["severity_multiplier"] = .5
+    result = plan(vehicle, policy, data=readings(rate=0),
+                  services=[rule(intervalo_km=None, intervalo_meses=1)],
+                  history=service_history(performed="2026-08-01"))["services"][0]
+    assert result["due_date"] == "2026-08-16"  # floor(31 * .5), not a converted monthly seed.
+
+
+@pytest.mark.parametrize("factor", [0, -1, 1.01, True, float("nan"), float("inf")])
+def test_severity_factor_cannot_extend_interval(vehicle, policy, factor):
+    vehicle["severity_multiplier"] = factor
+    with pytest.raises(ValueError, match="severidad"):
+        plan(vehicle, policy)
+
+
+def test_alert_describes_km_usage_and_distinct_overdue_stage(vehicle, policy):
+    service = rule(intervalo_km=6000, intervalo_meses=None)
+    first = plan(vehicle, policy, services=[service])
+    alert = next(alert for alert in first["alerts"] if alert["kind"] == "maintenance")
+    assert alert["stage"] == "14d"
+    assert alert["km_remaining"] == 1000
+    assert alert["usage_km_per_day"] == 100
+    assert "1,000 km" in alert["message"] and "100 km/día" in alert["message"]
+    overdue = build_plan(vehicle, readings(), service_history(), [], {"servicios": [service]}, policy, TODAY + timedelta(days=9))
+    past = next(alert for alert in overdue["alerts"] if alert["kind"] == "maintenance")
+    assert past["stage"] == "overdue"
+    assert past["threshold_days"] == 0
+    assert past["key"] == alert["key"]  # Same alert, new notification stage.
+
+
+def test_alert_generation_is_deterministic_and_cycle_unique(vehicle, policy):
+    first = plan(vehicle, policy, services=[rule(intervalo_km=6000)])
+    assert first == plan(vehicle, policy, services=[rule(intervalo_km=6000)])
+    assert len({alert["key"] for alert in first["alerts"]}) == len(first["alerts"])
+
+
+def test_grouping_fifteen_day_horizon_does_not_collect_distant_limits():
+    items = [window("a", "2026-09-19", "2026-09-20"),
+             window("b", "2026-09-19", "2026-10-05"),
+             window("c", "2026-09-19", "2026-10-06")]
+    visits = group_visits(items, TODAY, grouping_window_days=15)
+    assert len(visits) == 2
+    assert visits[0]["service_ids"] == ["a", "b"]
+    assert visits[0]["planned_date"] == "2026-09-20"
+    assert visits[1]["service_ids"] == ["c"]
+
+
+def test_fifteen_day_grouping_cannot_expand_nonoverlapping_windows():
+    items = [window("a", "2026-09-19", "2026-09-20"),
+             window("b", "2026-09-21", "2026-09-25")]
+    visits = group_visits(items, TODAY, grouping_window_days=15)
+    assert len(visits) == 2
+    assert visits[0]["planned_date"] == "2026-09-20"
+
+
+def test_engine_defaults_to_mexico_city_clock(policy, monkeypatch):
+    monkeypatch.setattr("app.engine.local_today", lambda: TODAY)
+    assert estimate_usage(readings(), policy) == estimate_usage(readings(), policy, TODAY)
+
+
+def test_day_override_needs_evidence_before_condition_rule_is_enabled(vehicle, policy):
+    service = rule(intervalo_km=None, intervalo_meses=None)
+    policy["service_overrides"]["oil"] = {"interval_days": 60}
+    assert plan(vehicle, policy, services=[service])["services"][0]["status"] == "pending_validation"
+    policy["service_overrides"]["oil"].update(validated=True, validated_by="Agencia de prueba",
+        validated_on="2026-09-01", evidence_url="https://example.test/validation")
+    assert plan(vehicle, policy, services=[service])["services"][0]["due_date"] == "2026-09-30"
+
+
+@pytest.mark.parametrize("section,key,value", [
+    ("planning", "grouping_window_days", -1),
+    ("planning", "grouping_window_days", 1.5),
+    ("planning", "default_severity_multiplier", 0),
+    ("planning", "default_severity_multiplier", 1.01),
+])
+def test_new_policy_fields_validated_at_startup_and_evaluation(vehicle, policy, section, key, value):
+    from app.settings import validate_policy
+    policy[section][key] = value
+    with pytest.raises(ValueError, match="Política"):
+        validate_policy(policy, {"oil"})
+    with pytest.raises(ValueError, match="Política"):
+        plan(vehicle, policy)
+
+
+@pytest.mark.parametrize("value", [0, 1023, 1048577, 2048.5, True, float("nan")])
+def test_request_size_policy_rejects_invalid_bounds(policy, value):
+    from app.settings import validate_policy
+    policy["api"]["max_request_bytes"] = value
+    with pytest.raises(ValueError, match="api.max_request_bytes"):
+        validate_policy(policy, {"oil"})
+
+
+@pytest.mark.parametrize("value", [1024, 262144, 1048576])
+def test_request_size_policy_accepts_inclusive_bounds(policy, value):
+    from app.settings import validate_policy
+    policy["api"]["max_request_bytes"] = value
+    assert validate_policy(policy, {"oil"}) is policy

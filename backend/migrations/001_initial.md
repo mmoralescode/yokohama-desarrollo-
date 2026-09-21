@@ -1,5 +1,8 @@
 # Migración 001: esquema inicial
 
+Documento histórico del esquema entregado originalmente. La versión actual y
+el upgrade compatible desde esta base se describen en `002_fleet_reliability.md`.
+
 La función `app.database.migrate()` crea las tablas declaradas en `app.models`
 en una transacción y registra la versión 1 en `schema_migrations`. Es idempotente
 y rechaza bases sin versión o con versiones desconocidas; no usa `create_all`

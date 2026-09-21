@@ -5,9 +5,9 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 const MAX_BODY_BYTES = 32_768;
 const routes: Record<string, RegExp[]> = {
-  GET: [/^vehicles$/, /^vehicles\/[1-9]\d*$/, /^vehicles\/[1-9]\d*\/plan$/, /^calendar$/, /^alerts$/, /^catalog$/, /^variants$/, /^notifications$/],
-  POST: [/^vehicles$/, /^vehicles\/[1-9]\d*\/(readings|services|faults)$/, /^recalculate$/],
-  PATCH: [/^faults\/[1-9]\d*\/resolve$/]
+  GET: [/^vehicles$/, /^vehicles\/[1-9]\d*$/, /^vehicles\/[1-9]\d*\/plan$/, /^calendar$/, /^alerts$/, /^catalog$/, /^variants$/, /^notifications$/, /^metrics$/],
+  POST: [/^vehicles$/, /^vehicles\/[1-9]\d*\/(readings|services|faults|downtime)$/, /^vehicles\/[1-9]\d*\/readings\/batch$/, /^recalculate$/],
+  PATCH: [/^faults\/[1-9]\d*\/resolve$/, /^vehicles\/[1-9]\d*$/, /^vehicles\/[1-9]\d*\/downtime\/[1-9]\d*$/]
 };
 function error(detail: string, status: number) { return NextResponse.json({detail}, {status, headers: {"Cache-Control": "no-store"}}); }
 
@@ -45,6 +45,7 @@ async function forward(request: NextRequest, context: {params: Promise<{path: st
   const {path} = await context.params;
   const route = path.join("/");
   if (!(routes[method] || []).some(pattern => pattern.test(route))) return error("Ruta no permitida.", 404);
+  const bodyLimit = /^vehicles\/[1-9]\d*\/readings\/batch$/.test(route) ? 262_144 : MAX_BODY_BYTES;
   const key = process.env.YOKOHAMA_API_KEY;
   if (!key?.trim() || !process.env.YOKOHAMA_API_URL) return error("Configura YOKOHAMA_API_URL y YOKOHAMA_API_KEY en el servidor del panel.", 503);
   let upstream: URL;
@@ -62,10 +63,17 @@ async function forward(request: NextRequest, context: {params: Promise<{path: st
       }
     }
   }
+  if (route === "metrics") {
+    const synthetic = request.nextUrl.searchParams.get("synthetic");
+    if (synthetic !== null) {
+      if (!["true", "false", "null"].includes(synthetic)) return error("Filtro de métricas inválido.", 400);
+      upstream.searchParams.set("synthetic", synthetic);
+    }
+  }
   let body: string | undefined;
   if (method !== "GET") {
     if (!request.headers.get("content-type")?.startsWith("application/json")) return error("Se requiere contenido JSON.", 415);
-    if (Number(request.headers.get("content-length")) > MAX_BODY_BYTES) return error("El formulario excede el tamaño permitido.", 413);
+    if (Number(request.headers.get("content-length")) > bodyLimit) return error("El formulario excede el tamaño permitido.", 413);
     const reader = request.body?.getReader();
     const chunks: Uint8Array[] = [];
     let size = 0;
@@ -74,7 +82,7 @@ async function forward(request: NextRequest, context: {params: Promise<{path: st
         const next = await reader.read();
         if (next.done) break;
         size += next.value.byteLength;
-        if (size > MAX_BODY_BYTES) { await reader.cancel(); return error("El formulario excede el tamaño permitido.", 413); }
+        if (size > bodyLimit) { await reader.cancel(); return error("El formulario excede el tamaño permitido.", 413); }
         chunks.push(next.value);
       }
     }

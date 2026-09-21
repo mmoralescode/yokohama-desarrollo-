@@ -1,12 +1,15 @@
 """Persistencia portable: tipos SQLAlchemy compatibles con SQLite/PostgreSQL."""
-from datetime import date, datetime, timezone
+from datetime import date, datetime
 
-from sqlalchemy import Boolean, Date, DateTime, Float, ForeignKey, Integer, JSON, String, Text, UniqueConstraint, CheckConstraint
+from sqlalchemy import Boolean, Date, DateTime, Float, ForeignKey, Integer, JSON, String, Text, UniqueConstraint, CheckConstraint, Index
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
+from .time_utils import date_timestamp, utc_now
 
-def utc_now() -> datetime:
-    return datetime.now(timezone.utc)
+
+def reading_timestamp(context) -> datetime:
+    """Legacy date-only callers keep working without inventing a precise time."""
+    return date_timestamp(context.get_current_parameters()["date"])
 
 
 class Base(DeclarativeBase):
@@ -21,7 +24,8 @@ class SchemaMigration(Base):
 
 class Vehicle(Base):
     __tablename__ = "vehicles"
-    __table_args__ = (CheckConstraint("current_km >= 0"), CheckConstraint("model_year BETWEEN 2021 AND 2026"))
+    __table_args__ = (CheckConstraint("current_km >= 0"), CheckConstraint("model_year BETWEEN 2021 AND 2026"),
+                      CheckConstraint("severity_multiplier BETWEEN 0.1 AND 1"))
     id: Mapped[int] = mapped_column(primary_key=True)
     vin: Mapped[str] = mapped_column(String(17), unique=True)
     plate: Mapped[str] = mapped_column(String(16), unique=True)
@@ -36,15 +40,21 @@ class Vehicle(Base):
     in_service_date: Mapped[date] = mapped_column(Date)
     usage_regime: Mapped[str] = mapped_column(String(10), default="normal")
     is_synthetic: Mapped[bool] = mapped_column(Boolean, default=False)
+    severity_multiplier: Mapped[float] = mapped_column(Float, default=1.0, server_default="1")
 
 
 class OdometerReading(Base):
     __tablename__ = "odometer_readings"
-    __table_args__ = (UniqueConstraint("vehicle_id", "date"), CheckConstraint("odometer_km >= 0"))
+    __table_args__ = (UniqueConstraint("vehicle_id", "recorded_at"), CheckConstraint("odometer_km >= 0"),
+                      CheckConstraint("source IN ('manual', 'gps', 'obd')"),
+                      CheckConstraint("time_precision IN ('date', 'timestamp')"))
     id: Mapped[int] = mapped_column(primary_key=True)
     vehicle_id: Mapped[int] = mapped_column(ForeignKey("vehicles.id"), index=True)
     date: Mapped[date] = mapped_column(Date)
     odometer_km: Mapped[float] = mapped_column(Float)
+    recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=reading_timestamp)
+    source: Mapped[str] = mapped_column(String(10), default="manual", server_default="manual")
+    time_precision: Mapped[str] = mapped_column(String(12), default="date", server_default="date")
 
 
 class ServiceCatalog(Base):
@@ -56,7 +66,9 @@ class ServiceCatalog(Base):
 
 class ServiceHistory(Base):
     __tablename__ = "service_history"
-    __table_args__ = (UniqueConstraint("vehicle_id", "service_id", "performed_on"), CheckConstraint("odometer_km >= 0"))
+    __table_args__ = (UniqueConstraint("vehicle_id", "service_id", "performed_on"), CheckConstraint("odometer_km >= 0"),
+                      CheckConstraint("cost IS NULL OR (cost >= 0 AND cost < 1e308)"),
+                      CheckConstraint("maintenance_type IN ('preventive', 'corrective', 'unknown')"))
     id: Mapped[int] = mapped_column(primary_key=True)
     vehicle_id: Mapped[int] = mapped_column(ForeignKey("vehicles.id"), index=True)
     service_id: Mapped[str] = mapped_column(ForeignKey("service_catalog.id"))
@@ -64,6 +76,12 @@ class ServiceHistory(Base):
     odometer_km: Mapped[float] = mapped_column(Float)
     notes: Mapped[str] = mapped_column(Text, default="")
     catalog_snapshot: Mapped[dict] = mapped_column(JSON)
+    cost: Mapped[float | None] = mapped_column(Float, nullable=True)
+    maintenance_type: Mapped[str] = mapped_column(String(16), default="unknown", server_default="unknown")
+    fault_id: Mapped[int | None] = mapped_column(ForeignKey("fault_reports.id"), nullable=True)
+    predicted_due_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    prediction_error_days: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    prediction_evaluation_id: Mapped[int | None] = mapped_column(ForeignKey("plan_evaluations.id"), nullable=True)
 
 
 class FaultReport(Base):
@@ -80,6 +98,19 @@ class FaultReport(Base):
     assessment_notes: Mapped[str] = mapped_column(Text, default="")
     resolution_notes: Mapped[str] = mapped_column(Text, default="")
     resolved_on: Mapped[date | None] = mapped_column(Date, nullable=True)
+    service_id: Mapped[str | None] = mapped_column(ForeignKey("service_catalog.id"), nullable=True)
+    was_predicted: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+
+
+class Downtime(Base):
+    __tablename__ = "downtime_periods"
+    __table_args__ = (CheckConstraint("ended_at IS NULL OR ended_at > started_at"),
+                      Index("ix_downtime_periods_vehicle_started", "vehicle_id", "started_at"))
+    id: Mapped[int] = mapped_column(primary_key=True)
+    vehicle_id: Mapped[int] = mapped_column(ForeignKey("vehicles.id"), index=True)
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    notes: Mapped[str] = mapped_column(Text, default="", server_default="")
 
 
 class PlanEvaluation(Base):

@@ -10,17 +10,17 @@ export default function CalendarPage() {
   const safeMonth = /^\d{4}-\d{2}$/.test(month) ? month : localDate().slice(0, 7);
   const [year, monthNumber] = safeMonth.split("-").map(Number);
   const start = `${safeMonth}-01`;
-  const end = localDate(new Date(year, monthNumber, 0));
+  const end = new Date(Date.UTC(year, monthNumber, 0)).toISOString().slice(0, 10);
   const resource = useResource<Visit[]>(`calendar?start=${start}&end=${end}`);
   const catalog = useResource<{servicios: {id: string; servicio: string}[]}>("catalog");
   const names = Object.fromEntries((catalog.data?.servicios || []).map(service => [service.id, service.servicio]));
   const visits = resource.data || [];
   const groups = visits.reduce<Record<string, Visit[]>>((result, visit) => { (result[visit.planned_date] ||= []).push(visit); return result; }, {});
-  const monthLabel = new Intl.DateTimeFormat("es-MX", {month: "long", year: "numeric"}).format(new Date(year, monthNumber - 1, 1));
-  const firstWeekday = (new Date(year, monthNumber - 1, 1).getDay() + 6) % 7;
-  const totalDays = new Date(year, monthNumber, 0).getDate();
+  const monthLabel = new Intl.DateTimeFormat("es-MX", {timeZone: "UTC", month: "long", year: "numeric"}).format(new Date(Date.UTC(year, monthNumber - 1, 1)));
+  const firstWeekday = (new Date(Date.UTC(year, monthNumber - 1, 1)).getUTCDay() + 6) % 7;
+  const totalDays = new Date(Date.UTC(year, monthNumber, 0)).getUTCDate();
   const today = localDate();
-  function moveMonth(delta: number) {setMonth(localDate(new Date(year, monthNumber - 1 + delta, 1)).slice(0, 7));}
+  function moveMonth(delta: number) {setMonth(new Date(Date.UTC(year, monthNumber - 1 + delta, 1)).toISOString().slice(0, 7));}
   return <>
     <PageHeader eyebrow="COORDINACIÓN DE TALLER" title="Una agenda, menos paradas." description="Visitas agrupadas en la última fecha compatible de cada ventana. Confirma cada propuesta antes de asignar la unidad." action={<button className="button secondary" onClick={resource.refresh} disabled={resource.loading}><Icon name="refresh" size={17}/>Actualizar</button>}/>
     {resource.error && <ErrorBox message={resource.error} retry={resource.refresh}/>}

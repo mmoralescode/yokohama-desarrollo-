@@ -1,9 +1,10 @@
 """Pure, deterministic planning rules. No database, network or hidden clock state.
 
-``estimate_usage(readings, config, today=None)`` returns a robust weighted daily
+``estimate_usage(readings, config, today=None, fleet_usage_km_per_day=None)`` returns a robust weighted daily
 rate and scenario bounds (not calibrated probability/coverage intervals).
-``group_visits(services, today=None, vehicle_id=None, provisional=True)`` groups
-closed date windows by their GLOBAL intersection, placing visits at its end.
+``group_visits(..., grouping_window_days=None)`` groups closed date windows by
+their GLOBAL intersection, placing visits at its end. An optional horizon limits
+the distance between deadlines; it never extends a service's safe window.
 ``build_plan(...)`` implements the public contract in docs/contrato-mvp.md.
 
 A future calibrated ML estimator may implement UsagePredictor. Its output still
@@ -21,9 +22,12 @@ from datetime import date, datetime, timedelta
 from statistics import median
 from typing import Any, Protocol
 
+from .time_utils import local_today
+
 
 class UsagePredictor(Protocol):
-    def estimate(self, readings: list[dict], config: dict, today: date) -> dict: ...
+    def estimate(self, readings: list[dict], config: dict, today: date,
+                 fleet_usage_km_per_day: float | None = None) -> dict: ...
 
 
 def _date(value: Any) -> date:
@@ -86,17 +90,23 @@ def validate_policy(config: dict) -> None:
         value = _number(planning.get(key))
         if value is None or int(value) != value or (key == "max_projection_days" and value == 0):
             raise ValueError(f"Política planning.{key} inválida.")
+    horizon = _number(planning.get("grouping_window_days", 15))
+    if horizon is None or int(horizon) != horizon:
+        raise ValueError("Política planning.grouping_window_days inválida.")
+    factor = _number(planning.get("default_severity_multiplier", 1))
+    if factor is None or not 0 < factor <= 1:
+        raise ValueError("Política planning.default_severity_multiplier inválida.")
     alert_days = config.get("alert_days")
     if not isinstance(alert_days, list) or any(_number(value) is None or int(value) != value for value in alert_days):
         raise ValueError("alert_days debe ser una lista de días enteros no negativos.")
     for service_id, override in config.get("service_overrides", {}).items():
-        for key in ["tolerance_days", "tolerance_km", "duration_hours", "advance_days", "workshop_buffer_days", "interval_km", "interval_months"]:
+        for key in ["tolerance_days", "tolerance_km", "duration_hours", "advance_days", "workshop_buffer_days", "interval_km", "interval_months", "interval_days"]:
             if key not in override or override[key] is None:
                 continue
             value = _number(override[key])
-            if value is None or (key in {"interval_km", "interval_months"} and value == 0):
+            if value is None or (key in {"interval_km", "interval_months", "interval_days"} and value == 0):
                 raise ValueError(f"Política {service_id}.{key} inválida.")
-            if key in {"advance_days", "workshop_buffer_days", "interval_months"} and int(value) != value:
+            if key in {"advance_days", "workshop_buffer_days", "interval_months", "interval_days"} and int(value) != value:
                 raise ValueError(f"Política {service_id}.{key} requiere entero.")
 
 
@@ -107,7 +117,7 @@ def _clean_readings(readings: list[dict], cfg: dict, today: date) -> tuple[list,
     The service projection also uses this cleaned sequence, not a rejected spike.
     """
     rejected = 0
-    grouped: dict[date, list[float]] = defaultdict(list)
+    grouped: dict[date, list[tuple[float, datetime | None]]] = defaultdict(list)
     for reading in readings:
         try:
             stamp = _date(reading.get("date"))
@@ -118,9 +128,26 @@ def _clean_readings(readings: list[dict], cfg: dict, today: date) -> tuple[list,
         if value is None or stamp > today:
             rejected += 1
             continue
-        grouped[stamp].append(value)
+        measured_at = None
+        if reading.get("recorded_at") and reading.get("time_precision", "timestamp") == "timestamp":
+            try:
+                measured_at = datetime.fromisoformat(str(reading["recorded_at"]).replace("Z", "+00:00"))
+                if measured_at.tzinfo is None:
+                    raise ValueError("Una lectura precisa requiere zona horaria.")
+            except (ValueError, TypeError):
+                rejected += 1
+                continue
+        grouped[stamp].append((value, measured_at))
     ordered = []
-    for stamp, values in sorted(grouped.items()):
+    for stamp, observations in sorted(grouped.items()):
+        precise = [(value, measured_at) for value, measured_at in observations if measured_at is not None]
+        if precise:
+            # Several valid intraday readings are not duplicate errors. Legacy
+            # date-only observations are superseded, never assigned invented times.
+            latest = max(measured_at for _, measured_at in precise)
+            values = [value for value, measured_at in precise if measured_at == latest]
+        else:
+            values = [value for value, _ in observations]
         if len(set(values)) > 1:
             rejected += len(values)  # Conflicting same-day records: choose neither.
         else:
@@ -177,9 +204,15 @@ def _clean_readings(readings: list[dict], cfg: dict, today: date) -> tuple[list,
     return clean, rejected
 
 
-def estimate_usage(readings: list[dict], config: dict, today: date | None = None) -> dict:
+def estimate_usage(readings: list[dict], config: dict, today: date | None = None,
+                   fleet_usage_km_per_day: float | None = None) -> dict:
+    """Use observed increments, then supplied fleet mean, then configured default.
+
+    The persistence adapter supplies a mean from other sufficiently observed
+    units. No database lookup or recursive fallback is performed in this module.
+    """
     validate_policy(config)
-    today = today or date.today()
+    today = today or local_today()
     cfg = config["usage"]
     clean, rejected = _clean_readings(readings, cfg, today)
     intervals = []
@@ -191,13 +224,19 @@ def estimate_usage(readings: list[dict], config: dict, today: date | None = None
         intervals.append((rate, weight))
     fallback = len(intervals) < cfg["min_intervals"]
     stale = not clean or (today - clean[-1][0]).days > cfg["stale_after_days"]
+    source = "observed"
     if fallback:
-        rate = float(cfg["default_km_per_day"])
+        fleet_rate = _number(fleet_usage_km_per_day)
+        if fleet_usage_km_per_day is not None and (fleet_rate is None or fleet_rate > cfg["max_daily_km"]):
+            raise ValueError("El promedio de flotilla debe ser finito y estar dentro del máximo diario.")
+        source = "fleet" if fleet_rate is not None else "default"
+        rate = fleet_rate if fleet_rate is not None else float(cfg["default_km_per_day"])
         spread = rate * cfg["fallback_relative_uncertainty"]
         # Sparse observed high use must not be hidden by the fallback average.
-        high = max([rate + spread] + [r for r, _ in intervals])
+        high = min(cfg["max_daily_km"], max([rate + spread] + [r for r, _ in intervals]))
         low = max(0.0, min([rate - spread] + [r for r, _ in intervals]))
-        explanation = "Pocos datos: tasa de respaldo configurable; escenarios provisionales, confianza baja."
+        origin = "promedio observado de la flotilla" if source == "fleet" else "tasa de respaldo configurable"
+        explanation = f"Pocos datos: {origin}; escenarios provisionales, confianza baja."
         confidence = "baja"
     else:
         centre = median(r for r, _ in intervals)
@@ -223,13 +262,15 @@ def estimate_usage(readings: list[dict], config: dict, today: date | None = None
         "km_per_day": round(rate, 3), "low_km_per_day": round(low, 3),
         "high_km_per_day": round(high, 3), "confidence": confidence,
         "valid_intervals": len(intervals), "rejected_readings": rejected,
+        "source": source, "fallback_used": fallback,
         "explanation": explanation,
     }
 
 
 class RulesUsagePredictor:
-    def estimate(self, readings: list[dict], config: dict, today: date) -> dict:
-        return estimate_usage(readings, config, today)
+    def estimate(self, readings: list[dict], config: dict, today: date,
+                 fleet_usage_km_per_day: float | None = None) -> dict:
+        return estimate_usage(readings, config, today, fleet_usage_km_per_day)
 
 
 def matches_service(vehicle: dict, service: dict) -> bool:
@@ -283,18 +324,20 @@ def _first(*values: date | None) -> date | None:
 
 def _alert(vehicle_id: Any, kind: str, key: str, severity: str, message: str,
            deadline: date | None, today: date, service_id: str | None = None,
-           fault_id: int | None = None, threshold: int | None = None) -> dict:
+           fault_id: int | None = None, threshold: int | None = None,
+           stage: str | None = None) -> dict:
     return {
         "key": f"{vehicle_id}:{kind}:{key}", "vehicle_id": vehicle_id,
         "service_id": service_id, "fault_id": fault_id, "severity": severity,
         "message": message, "deadline": _iso(deadline),
         "days_remaining": (deadline - today).days if deadline else None,
         "threshold_days": threshold, "status": "open", "kind": kind,
+        "stage": stage or kind,
     }
 
 
 def group_visits(services: list[dict], today: date | None = None, vehicle_id: Any = None,
-                 provisional: bool = True) -> list[dict]:
+                 provisional: bool = True, grouping_window_days: int | None = None) -> list[dict]:
     """Minimum interval-stabbing visits; latest feasible point in common window.
 
     No transitive-overlap chaining. Overdue work keeps its historic deadline but
@@ -302,7 +345,10 @@ def group_visits(services: list[dict], today: date | None = None, vehicle_id: An
     Durations remain unknown if any member's duration is unknown. The result is
     a proposal, not a workshop-capacity or parts-availability reservation.
     """
-    today = today or date.today()
+    today = today or local_today()
+    if grouping_window_days is not None and (isinstance(grouping_window_days, bool)
+            or not isinstance(grouping_window_days, int) or grouping_window_days < 0):
+        raise ValueError("La ventana de agrupación debe ser un entero no negativo.")
     available, immediate, overdue_items = [], [], []
     for service in services:
         if service.get("status") == "pending_validation":
@@ -324,9 +370,10 @@ def group_visits(services: list[dict], today: date | None = None, vehicle_id: An
     available.sort(key=lambda item: (item[1], item[0], str(item[2].get("service_id"))))
     while available:
         point = available[0][1]
-        included = [item for item in available if item[0] <= point <= item[1]]
+        included = [item for item in available if item[0] <= point <= item[1]
+                    and (grouping_window_days is None or (item[1] - point).days <= grouping_window_days)]
         groups.append((point, [item[2] for item in included], "proposed"))
-        available = [item for item in available if not (item[0] <= point <= item[1])]
+        available = [item for item in available if item not in included]
     visits = []
     for point, members, status in groups:
         service_ids = sorted(s["service_id"] for s in members if s.get("service_id"))
@@ -335,6 +382,8 @@ def group_visits(services: list[dict], today: date | None = None, vehicle_id: An
         durations = [member.get("duration_hours") for member in members]
         total = sum(durations) if all(value is not None for value in durations) else None
         explanation = "Último día de la intersección común de ventanas; confirmar taller, duración y disponibilidad."
+        if grouping_window_days is not None:
+            explanation += f" Se agrupan límites separados como máximo {grouping_window_days} días, sin ampliar ventanas."
         if status == "overdue":
             explanation = "Límites ya vencidos: una evaluación urgente hoy; se conservan vencimientos históricos. No es una ventana válida ni nueva prórroga."
         elif status == "immediate":
@@ -349,14 +398,23 @@ def group_visits(services: list[dict], today: date | None = None, vehicle_id: An
 
 
 def build_plan(vehicle: dict, readings: list[dict], history: list[dict], faults: list[dict],
-               catalog: dict, config: dict, today: date | None = None) -> dict:
-    """Evaluate source snapshots without mutating them or fabricating missing data."""
-    today = today or date.today()
+               catalog: dict, config: dict, today: date | None = None,
+               fleet_usage_km_per_day: float | None = None) -> dict:
+    """Evaluate source snapshots without mutating them or fabricating missing data.
+
+    ``severity_multiplier`` is an interval multiplier, never a failure probability
+    or a claim of mechanical safety. Values below one only advance due dates.
+    Days and calendar months remain distinct, earliest due criterion wins.
+    """
+    today = today or local_today()
     mode = config.get("mode", "operational")
     if mode not in {"demo", "operational"}:
         raise ValueError("El modo debe ser demo u operational.")
     demo = mode == "demo"
-    usage = RulesUsagePredictor().estimate(readings, config, today)
+    usage = RulesUsagePredictor().estimate(readings, config, today, fleet_usage_km_per_day)
+    factor = _number(vehicle.get("severity_multiplier", config["planning"].get("default_severity_multiplier", 1)))
+    if factor is None or not 0 < factor <= 1:
+        raise ValueError("El multiplicador de severidad debe ser mayor que cero y no superar uno.")
     clean, _ = _clean_readings(readings, config["usage"], today)
     current_km = _number(vehicle.get("current_km"))
     if current_km is None:
@@ -430,7 +488,10 @@ def build_plan(vehicle: dict, readings: list[dict], history: list[dict], faults:
             continue
         interval_km = _number(override.get("interval_km", service.get("intervalo_km"))) if validated else _number(service.get("intervalo_km"))
         months = override.get("interval_months", service.get("intervalo_meses")) if validated else service.get("intervalo_meses")
-        if not interval_km and not months:
+        days = override.get("interval_days", service.get("intervalo_dias")) if validated else service.get("intervalo_dias")
+        if days is not None and (_number(days) is None or float(days) <= 0 or int(float(days)) != float(days)):
+            raise ValueError(f"Intervalo de días inválido: {service_id}.")
+        if not interval_km and not months and not days:
             result["explanation"] = "Por condición/VIN: requiere inspección o diagnóstico; no existe intervalo documentado que permita predecir una avería por km."
             services.append(result)
             continue
@@ -455,8 +516,14 @@ def build_plan(vehicle: dict, readings: list[dict], history: list[dict], faults:
             services.append(result)
             continue
         anchor_date, anchor_km, _ = anchor
-        due_km = anchor_km + interval_km if interval_km else None
-        time_due = add_months(anchor_date, int(months)) if months else None
+        due_km = anchor_km + interval_km * factor if interval_km else None
+        calendar_due = add_months(anchor_date, int(months)) if months else None
+        day_due = anchor_date + timedelta(days=int(days)) if days else None
+        time_due = _first(calendar_due, day_due)
+        if time_due is not None:
+            # Preserve calendar months exactly at factor=1. Shortening operates
+            # on that specific interval's actual duration, never months * 30.
+            time_due = anchor_date + timedelta(days=math.floor((time_due - anchor_date).days * factor))
         remaining = due_km - observed_km if due_km is not None else None
         max_days = int(planning["max_projection_days"])
         distances = [_project(observed_on, remaining, usage[key], max_days) if remaining is not None else None
@@ -493,7 +560,9 @@ def build_plan(vehicle: dict, readings: list[dict], history: list[dict], faults:
         start = min(pessimistic or deadline, deadline) - timedelta(days=max(0, int(advance)))
         km_remaining = due_km - (observed_km + usage["km_per_day"] * (today - observed_on).days) if due_km is not None else None
         status = "overdue" if deadline < today else "due" if deadline == today else "upcoming"
-        explanation = "Vence lo primero: kilómetros o meses calendario. Límite calculado con escenario de uso más exigente; no autoriza prórroga desconocida."
+        explanation = "Vence lo primero: kilómetros, días o meses calendario. Límite calculado con escenario de uso más exigente; no autoriza prórroga desconocida."
+        if factor < 1:
+            explanation += f" Intervalos acortados por factor de severidad de la unidad: {factor:g}."
         if requires_validation:
             explanation += " Referencia provisional: confirmar intervalo, ventana de adelanto y límite con Mazda."
         if service.get("conflictos"):
@@ -506,6 +575,7 @@ def build_plan(vehicle: dict, readings: list[dict], history: list[dict], faults:
             "confidence": _confidence(service.get("confianza", "baja"), usage["confidence"], "baja" if requires_validation else "alta"),
             "window_start": _iso(start), "window_end": _iso(deadline),
             "prediction": {"optimistic": _iso(optimistic), "probable": _iso(probable), "pessimistic": _iso(pessimistic)},
+            "severity_multiplier": factor,
             "explanation": explanation,
         })
         services.append(result)
@@ -513,11 +583,18 @@ def build_plan(vehicle: dict, readings: list[dict], history: list[dict], faults:
         thresholds = sorted(set(int(days) for days in config["alert_days"] if int(days) >= 0))
         crossed = [days for days in thresholds if days_remaining <= days]
         if crossed or days_remaining <= 0:
-            threshold = min(crossed) if crossed else None
+            threshold = 0 if days_remaining < 0 else min(crossed) if crossed else 0
+            stage = "overdue" if days_remaining < 0 else f"{threshold}d"
             text = f"{service['servicio']}: " + ("límite vencido; gestionar evaluación hoy." if days_remaining < 0 else f"límite de ingreso {deadline.isoformat()} ({days_remaining} días).")
+            if km_remaining is not None:
+                remaining_text = f"faltan {max(0, km_remaining):,.0f} km" if km_remaining >= 0 else f"se excedió el intervalo por {abs(km_remaining):,.0f} km"
+                text += f" {remaining_text.capitalize()}, al ritmo de {usage['km_per_day']:g} km/día."
+                if usage["km_per_day"] > 0 and km_remaining >= 0:
+                    text += f" Aproximadamente {math.floor(km_remaining / usage['km_per_day'])} días por kilometraje; prevalece el límite indicado."
             cycle_key = f"{service_id}:{anchor_date.isoformat()}:{anchor_km:g}"
             alerts.append(_alert(vehicle.get("id"), "maintenance", cycle_key, result["severity"], text,
-                                 deadline, today, service_id=service_id, threshold=threshold))
+                                 deadline, today, service_id=service_id, threshold=threshold, stage=stage))
+            alerts[-1].update({"km_remaining": result["km_remaining"], "usage_km_per_day": usage["km_per_day"]})
     for fault in faults:
         if fault.get("status", "open") != "open":
             continue
@@ -572,7 +649,8 @@ def build_plan(vehicle: dict, readings: list[dict], history: list[dict], faults:
                              f"{len(pending)} operaciones sin plan confirmable: completar historial/validación.", None, today))
     if usage["rejected_readings"] or not clean or (today - observed_on).days > config["usage"]["stale_after_days"]:
         alerts.append(_alert(vehicle.get("id"), "data", "odometer-quality", "importante", usage["explanation"], None, today))
-    visits = group_visits(services + fault_windows, today, vehicle.get("id"), provisional=demo)
+    visits = group_visits(services + fault_windows, today, vehicle.get("id"), provisional=demo,
+                          grouping_window_days=int(planning.get("grouping_window_days", 15)))
     urgent = any(alert["severity"] == "critico" or (alert["kind"] != "data" and alert["days_remaining"] is not None and alert["days_remaining"] <= 0) for alert in alerts)
     actionable = any(alert["kind"] != "data" for alert in alerts)
     traffic = "red" if urgent else "amber" if actionable else "gray" if pending or usage["confidence"] == "baja" else "green"

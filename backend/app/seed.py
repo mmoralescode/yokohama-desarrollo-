@@ -16,6 +16,7 @@ from .database import make_database, migrate
 from .engine import matches_service
 from .models import FaultReport, OdometerReading, ServiceCatalog, ServiceHistory, Vehicle
 from .planner import evaluate
+from .time_utils import local_today
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -23,7 +24,7 @@ ROOT = Path(__file__).resolve().parents[2]
 def seed_database(database_url: str, *, seed: int = 2026, count: int = 20, today: date | None = None) -> dict:
     if not 1 <= count <= 200:
         raise ValueError("La demostración acepta entre 1 y 200 unidades")
-    today = today or date.today()
+    today = today or local_today()
     catalog = json.loads((ROOT / "catalogos/mazda3-mx.v0.1.0.json").read_text(encoding="utf-8"))
     variants = json.loads((ROOT / "catalogos/variantes-mx.v0.1.0.json").read_text(encoding="utf-8"))["variantes"]
     policy = json.loads((ROOT / "config/policy.json").read_text(encoding="utf-8"))

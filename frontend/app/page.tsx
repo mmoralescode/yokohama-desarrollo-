@@ -5,13 +5,15 @@ import {api, dateLabel, localDate, numberLabel, useResource} from "@/lib/api";
 import type {Variant, VehicleSummary} from "@/lib/types";
 import {Empty, ErrorBox, Icon, Loading, MutationForm, PageHeader, Stat, TrafficBadge} from "@/components/ui";
 import MazdaViewer from "@/components/mazda-viewer";
+import FleetMetricsPanel from "@/components/fleet-metrics";
+import {compareUrgency} from "@/lib/fleet-order";
 
 function AddVehicle({onDone}: {onDone: () => void}) {
   const variants = useResource<{variantes: Variant[]}>("variants");
   const [variantId, setVariantId] = useState("");
   const chosen = variants.data?.variantes.find(v => v.id === variantId);
   return <section className="panel add-vehicle"><MutationForm title="Registrar unidad" description="Usa el VIN y la variante comprobados en la unidad. El registro no acredita mantenimiento previo." submitLabel="Agregar a flotilla" onDone={onDone} onSave={async data => {
-    await api("vehicles", {method: "POST", body: {vin: String(data.get("vin")).trim().toUpperCase(), plate: String(data.get("plate")).trim().toUpperCase(), variant_id: variantId, model_year: chosen?.anio_modelo, transmission: data.get("transmission"), current_km: Number(data.get("km")), in_service_date: data.get("in_service_date"), usage_regime: data.get("usage_regime"), is_synthetic: data.get("synthetic") === "on"}});
+    await api("vehicles", {method: "POST", body: {vin: String(data.get("vin")).trim().toUpperCase(), plate: String(data.get("plate")).trim().toUpperCase(), variant_id: variantId, model_year: chosen?.anio_modelo, transmission: data.get("transmission"), current_km: Number(data.get("km")), in_service_date: data.get("in_service_date"), usage_regime: data.get("usage_regime"), severity_multiplier: Number(data.get("severity_multiplier")), is_synthetic: data.get("synthetic") === "on"}});
     return "Unidad registrada. Agrega sus lecturas y servicios para mejorar la proyección.";
   }}>
     {variants.error && <ErrorBox message={variants.error} retry={variants.refresh}/>}
@@ -19,6 +21,7 @@ function AddVehicle({onDone}: {onDone: () => void}) {
       <label className="span-2">Variante documentada<select required value={variantId} onChange={e => setVariantId(e.target.value)}><option value="">Selecciona año, carrocería y versión</option>{variants.data?.variantes.map(v => <option key={v.id} value={v.id}>{v.anio_modelo} · {v.carroceria} · {v.version} · {v.motor}</option>)}</select></label>
       <label>Transmisión<select name="transmission" key={variantId} required defaultValue=""><option value="">Selecciona</option>{chosen?.transmisiones.map(t => <option key={t}>{t}</option>)}</select></label><label>Odómetro actual (km)<input name="km" type="number" min={0} step="0.1" required/></label>
       <label>Fecha de puesta en servicio<input name="in_service_date" type="date" required max={localDate()}/></label><label>Régimen de uso<select name="usage_regime"><option value="normal">Normal</option><option value="severe">Severo (validar criterio Mazda)</option></select></label>
+      <label className="span-2">Factor de intervalo<input name="severity_multiplier" type="number" min={0.1} max={1} step={0.01} defaultValue={1} required/><span className="field-help">1 conserva los intervalos. Un valor menor los acorta (0.8 = 80 %); nunca amplía límites de mantenimiento.</span></label>
     </div><label className="check-label"><input type="checkbox" name="synthetic"/>Esta unidad es un dato sintético de demostración</label>
   </MutationForm></section>;
 }
@@ -32,7 +35,7 @@ export default function FleetPage() {
   const [mutationError, setMutationError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const vehicles = resource.data || [];
-  const visible = useMemo(() => vehicles.filter(v => (status === "all" || v.traffic_light === status) && `${v.plate} ${v.version} ${v.vin} ${v.model_year}`.toLowerCase().includes(search.toLowerCase())), [vehicles, search, status]);
+  const visible = useMemo(() => vehicles.filter(v => (status === "all" || v.traffic_light === status) && `${v.plate} ${v.version} ${v.vin} ${v.model_year}`.toLowerCase().includes(search.toLowerCase())).sort(compareUrgency), [vehicles, search, status]);
   const urgent = vehicles.filter(v => v.traffic_light === "red").length;
   const planned = vehicles.filter(v => v.next_visit_date).length;
   const unvalidated = vehicles.filter(v => v.traffic_light === "gray" || v.traffic_light === "amber").length;
@@ -55,6 +58,7 @@ export default function FleetPage() {
         <td><Link href={`/vehiculos/${vehicle.id}`} className="plate-link">{vehicle.plate}</Link><span className="cell-sub">Mazda3 {vehicle.model_year} · {vehicle.version}</span>{vehicle.is_synthetic && <span className="synthetic-label">DATO SINTÉTICO</span>}</td><td><TrafficBadge value={vehicle.traffic_light}/></td><td className="numeric">{numberLabel(vehicle.current_km)} <span className="muted">km</span></td><td className="numeric">{numberLabel(vehicle.usage_km_per_day, 1)} <span className="muted">km/día</span></td><td>{vehicle.next_visit_date ? dateLabel(vehicle.next_visit_date) : <span className="muted">Sin fecha validada</span>}{vehicle.next_visit_date && <span className="cell-sub">Provisional</span>}</td><td><span className={vehicle.open_alerts ? "alert-count" : "muted"}>{vehicle.open_alerts}</span></td><td><Link className="icon-link" href={`/vehiculos/${vehicle.id}`} aria-label={`Ver unidad ${vehicle.plate}`}><Icon name="arrow"/></Link></td>
       </tr>)}</tbody></table></div>}
     </section>
+    {resource.data && <FleetMetricsPanel demoOnly={vehicles.length > 0 && vehicles.every(vehicle => vehicle.is_synthetic)}/>}
     <div className="bottom-note"><Icon name="wrench"/><p><strong>Una visita bien planeada, menos tiempo detenido.</strong><br/>El motor agrupa ventanas compatibles; nunca difiere una falla crítica ni supone tolerancias sin respaldo.</p><Link href="/calendario">Ver calendario <Icon name="arrow" size={16}/></Link></div>
   </>;
 }

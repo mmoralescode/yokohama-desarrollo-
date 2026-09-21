@@ -1,13 +1,13 @@
 {
-  "policy_version": "0.1.0",
+  "policy_version": "0.2.0",
   "mode": "demo",
   "approval": {
     "scope": "Desarrollo del MVP y proyecciones provisionales; no validación mecánica ni autorización de prórrogas",
     "catalog_version": "0.1.0",
     "technical_validation_pending": true
   },
-  "alert_days": [30, 15, 7, 3],
-  "api": {"refresh_seconds": 300},
+  "alert_days": [30, 14, 7],
+  "api": {"refresh_seconds": 300, "max_request_bytes": 262144},
   "triage": {
     "critical_symptom_phrases": [
       "sin frenos", "perdida de frenado", "perdida de frenos", "no frena",
@@ -41,11 +41,16 @@
     "demo_advance_days": 7,
     "allow_initial_anchor": false,
     "max_projection_days": 3650,
-    "workshop_buffer_days": 0
+    "workshop_buffer_days": 0,
+    "grouping_window_days": 15,
+    "default_severity_multiplier": 1
   },
   "service_overrides": {},
   "notes": [
     "80 km/día y los parámetros estadísticos son supuestos demostrativos configurables, no datos Mazda ni calibración de Yokohama.",
+    "Si faltan lecturas de una unidad se usa el promedio observado de otras unidades; si la flotilla tampoco tiene datos suficientes se usa 80 km/día y confianza baja.",
+    "El factor de severidad por unidad solo puede acortar intervalos (mayor que cero y hasta 1); no autoriza prórrogas.",
+    "La agrupación busca límites dentro de 15 días y exige intersección segura de ventanas; no retrasa servicios vencidos o críticos.",
     "La ventana de adelanto de 7 días existe solo en demo. No representa autorización para posponer servicios.",
     "No se conceden tolerancias desconocidas. Los márgenes comerciales de garantía no se convierten en tolerancia mecánica.",
     "Operación real requiere reglas habilitadas y metadatos explícitos de validación por servicio.",

@@ -10,11 +10,12 @@ El código se trasladó a este repositorio independiente sin importar el histori
 
 - Flotilla con búsqueda y semáforo, detalle por unidad, calendario y bandeja de alertas en español; diseño adaptable a móvil.
 - Visor minimalista del Mazda3 Hatchback **2020** de Ddiaz Design para la demo **no comercial**, con créditos y licencia CC BY-NC-SA 4.0 en un desplegable. Modelo y texturas locales: giro, inclinación, zoom y teclado **sin internet**, al pulsar «Ver en 3D». Sin visor externo ni giro automático; solo renderiza cuando cambia la vista. Requiere mantener el servidor local encendido y un navegador con gráficos 3D. No cambia las reglas de mantenimiento. [Fuente, licencia y límites](docs/modelo-3d.md).
-- Registro de unidades de la matriz mexicana, lecturas fechadas, servicios realizados, fallas/DTC y resolución explícita.
-- Estimación robusta de km/día, confianza y fechas temprana/probable/tardía; vencimiento por lo primero que ocurra: kilometraje o meses naturales.
+- Registro de unidades, lecturas con fecha/hora y fuente, servicios con costo MXN, fallas/DTC y paros reales. Validación de cronología y cargas JSON atómicas de hasta 500 lecturas.
+- Estimación ponderada y robusta de km/día, respaldo del promedio de flotilla (sin mezclar demo con datos reales), escenarios y confianza. Vence lo primero: km, días o meses naturales, ajustado por severidad de cada unidad.
 - Agrupación de ventanas en la última fecha común posible. Servicios vencidos generan evaluación hoy, sin inventar una prórroga; críticos reciben atención inmediata.
-- Alertas 30/15/7/3 días antes del límite conservador. Recálculo periódico mientras la API está activa. Correo y WhatsApp **solo simulados**, sin envío ni destinatarios reales.
-- SQLite, migración inicial, auditoría de insumos/catálogo/política y generador reproducible de 20 unidades sintéticas. Pruebas de motor, API y navegador.
+- Alertas 30/14/7 días y etapa vencido, sin duplicar cada recálculo. Correo y WhatsApp **solo simulados**, sin envío ni destinatarios reales.
+- Flotilla ordenada por urgencia, métricas separadas real/demo, error de pronóstico y días fuera de servicio.
+- SQLite con migración v1→v2 y respaldo previo verificado; auditoría de insumos/catálogo/política y generador reproducible de 20 unidades sintéticas. [Operación, supuestos y carga de datos](docs/operacion-datos.md).
 
 ## Inicio rápido en Windows
 
@@ -72,7 +73,7 @@ Opcionales del backend:
 
 ## Pruebas
 
-Resultados de la entrega y correcciones verificadas: [verificación del MVP](docs/verificacion-mvp.md).
+Resultados actuales: [verificación de fiabilidad y capacidad](docs/verificacion-fiabilidad.md). Historial: [verificación inicial del MVP](docs/verificacion-mvp.md).
 
 Desde `backend` con el entorno activo:
 
@@ -112,7 +113,7 @@ El uso combina limpieza robusta de lecturas con tasas ponderadas por recencia. L
 
 | Grupo de configuración | Controla |
 | --- | --- |
-| `alert_days` | Anticipaciones 30/15/7/3 días |
+| `alert_days` | Anticipaciones 30/14/7 días; vencido es una etapa adicional |
 | `usage` | Respaldo 80 km/día, ventana, ponderación, muestras mínimas, máximo plausible e incertidumbre |
 | `planning` | Adelanto demostrativo de 7 días, horizonte y reserva previa al límite |
 | `triage` | Síntomas de escalamiento preventivo y listas DTC sujetas a validación |

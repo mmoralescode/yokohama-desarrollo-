@@ -42,6 +42,8 @@ const test = base.extend<{offlineNetwork: OfflineNetwork}>({
       if (url.pathname.startsWith("/api/backend/")) {
         if (request.method() === "GET" && url.pathname === "/api/backend/vehicles") {
           await route.fulfill({json: []});
+        } else if (request.method() === "GET" && url.pathname === "/api/backend/metrics") {
+          await route.fulfill({json: {total_services: 0, classified_services: 0, preventive_services: 0, services_before_failure_percent: null, prediction_samples: 0, mean_absolute_error_days: null, mean_signed_error_days: null, unpredicted_failures: 0, classified_failures: 0, total_failures: 0, downtime_days: 0, open_downtimes: 0, as_of: "2026-09-21", timezone: "America/Mexico_City"}});
         } else {
           unexpectedBackend.push(`${request.method()} ${url.pathname}`);
           await route.abort("blockedbyclient");
@@ -72,7 +74,7 @@ const test = base.extend<{offlineNetwork: OfflineNetwork}>({
     await use(network);
     for (const route of pending.splice(0)) await route.abort("aborted").catch(() => {});
     expect(network.externalRequests, "The viewer must never attempt external HTTP or WebSocket connections").toEqual([]);
-    expect(unexpectedBackend, "Only the mocked fleet read is allowed; no real backend access or mutations").toEqual([]);
+    expect(unexpectedBackend, "Only mocked fleet/metrics reads are allowed; no real backend access or mutations").toEqual([]);
   }, {auto: true}],
 });
 

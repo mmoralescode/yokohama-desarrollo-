@@ -1,10 +1,11 @@
 import {test, expect} from "@playwright/test";
+import {localDate} from "../lib/dates";
 
 const origin = "http://127.0.0.1:3001";
 const isoDay = (offset = 0) => {
   const d = new Date();
   d.setDate(d.getDate() + offset);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  return localDate(d);
 };
 
 test("flotilla sintética, detalle, calendario, alertas y vista móvil", async ({page}, testInfo) => {
@@ -58,7 +59,7 @@ test("alta sintética y registro real de lectura, servicio, falla y resolución"
   await page.getByLabel("Buscar unidad").fill(plate);
   await page.getByRole("link", {name: plate, exact: true}).click();
   await expect(page.getByRole("heading", {name: plate, exact: true})).toBeVisible();
-  await page.getByLabel("Fecha de lectura").fill(isoDay(-1));
+  await page.getByLabel("Fecha y hora de lectura (CDMX)").fill(`${isoDay(-1)}T12:00`);
   await page.getByLabel("Odómetro (km)", {exact: true}).fill("9900");
   await page.getByRole("button", {name: "Guardar registro", exact: true}).click();
   await expect(page.getByText("Lectura guardada. Proyección recalculada.")).toBeVisible();
@@ -69,7 +70,7 @@ test("alta sintética y registro real de lectura, servicio, falla y resolución"
   await page.getByLabel("Odómetro al realizarlo (km)").fill("10000");
   await page.getByLabel("Notas del trabajo").fill("Servicio sintético de prueba E2E, no mantenimiento de una unidad real.");
   await page.getByRole("button", {name: "Guardar registro", exact: true}).click();
-  await expect(page.getByText("Servicio registrado. Plan actualizado.")).toBeVisible();
+  await expect(page.getByText("Servicio registrado. Plan y métricas actualizados.")).toBeVisible();
   await page.getByRole("button", {name: "Falla", exact: true}).click();
   await page.getByLabel("Descripción del síntoma").fill("Prueba sintética: pérdida de frenado; la unidad no frena.");
   // Explicit critical input checks the complete user-facing urgent flow.

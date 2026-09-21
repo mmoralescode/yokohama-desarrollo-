@@ -2,6 +2,8 @@
 import math
 from datetime import date
 
+from .time_utils import local_today
+
 
 def validate_policy(policy: dict, service_ids: set[str]) -> dict:
     if policy.get("mode") not in {"demo", "operational"} or not isinstance(policy.get("policy_version"), str):
@@ -30,16 +32,24 @@ def validate_policy(policy: dict, service_ids: set[str]) -> dict:
     planning = policy.get("planning", {})
     for name in ("default_advance_days", "demo_advance_days", "workshop_buffer_days", "max_projection_days"):
         number(planning.get(name), f"planning.{name}", integer=True, maximum=36500)
+    number(planning.get("grouping_window_days", 15), "planning.grouping_window_days", integer=True, maximum=3650)
+    number(planning.get("default_severity_multiplier", 1), "planning.default_severity_multiplier", minimum=.1, maximum=1)
     if not isinstance(planning.get("allow_initial_anchor"), bool):
         raise ValueError("Política: allow_initial_anchor debe ser booleano")
     number(policy.get("api", {}).get("refresh_seconds", 300), "api.refresh_seconds", maximum=86400)
+    number(policy.get("api", {}).get("max_request_bytes", 262144), "api.max_request_bytes",
+           minimum=1024, maximum=1048576, integer=True)
     overrides = policy.get("service_overrides", {})
     if not isinstance(overrides, dict) or set(overrides) - service_ids:
         raise ValueError("Política: override de servicio desconocido")
     for service_id, override in overrides.items():
-        for name in ("advance_days", "tolerance_days", "tolerance_km", "duration_hours"):
+        for name in ("advance_days", "tolerance_days", "tolerance_km", "duration_hours", "workshop_buffer_days"):
             if override.get(name) is not None:
                 number(override[name], f"{service_id}.{name}", integer=name.endswith("days"))
+        for name in ("interval_km", "interval_months", "interval_days"):
+            if override.get(name) is not None:
+                number(override[name], f"{service_id}.{name}", minimum=1,
+                       integer=name in {"interval_months", "interval_days"})
         if override.get("validated") is True:
             if not override.get("validated_by") or not str(override.get("evidence_url", "")).startswith("https://"):
                 raise ValueError("Política: validación sin responsable o evidencia HTTPS")
@@ -47,6 +57,6 @@ def validate_policy(policy: dict, service_ids: set[str]) -> dict:
                 validated_on = date.fromisoformat(override["validated_on"])
             except (KeyError, ValueError, TypeError) as error:
                 raise ValueError("Política: fecha de validación obligatoria") from error
-            if validated_on > date.today():
+            if validated_on > local_today():
                 raise ValueError("Política: fecha de validación futura")
     return policy
