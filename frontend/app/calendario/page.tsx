@@ -17,8 +17,14 @@ export default function CalendarPage() {
   const [search, setSearch] = useState("");
   const [driverSearch, setDriverSearch] = useState("");
   useEffect(() => {
-    const unit = new URLSearchParams(window.location.search).get("unidad");
+    const parameters = new URLSearchParams(window.location.search);
+    const requestedMonth = parameters.get("mes");
+    if (requestedMonth && /^\d{4}-(0[1-9]|1[0-2])$/.test(requestedMonth)) setMonth(requestedMonth);
+    const plate = parameters.get("placa");
+    if (plate) setSearch(plate);
+    const unit = parameters.get("unidad");
     if (unit && /^[1-9]\d*$/.test(unit)) setAction({mode: "complete", vehicleId: Number(unit)});
+    else if (parameters.get("registro") === "1") setAction({mode: "complete"});
   }, []);
   const safeMonth = /^\d{4}-\d{2}$/.test(month) ? month : localDate().slice(0, 7);
   const [year, monthNumber] = safeMonth.split("-").map(Number);

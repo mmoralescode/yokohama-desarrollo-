@@ -17,6 +17,7 @@ Para verificar: `npm run typecheck`, `npm run build` y `npm run test:e2e`. Para 
 - `/vehiculos/[id]`: estimación de uso, ventanas e incertidumbre, fuentes, visitas, historial y registro de lecturas, servicios, fallas y resoluciones.
 - `/calendario`: agenda mensual, cambios de fecha con historial y registro retrospectivo de servicios (kilometraje opcional).
 - `/alertas`: mantenimiento, fallas y problemas de datos; bandeja de notificaciones explícitamente simuladas.
+- `/dashboard`: resumen administrativo, prioridades por unidad, agenda de siete días, actividad de seis meses y registros por completar. Se encuentra debajo de Alertas; [definiciones de los indicadores](../docs/dashboard.md).
 
 Las proyecciones se etiquetan como provisionales. Una fecha o tolerancia desconocida no se presenta como una garantía de seguridad. Para diferir una falla se requiere evaluación y responsable documentados; el motor puede elevar la severidad o rechazar ese diferimiento. Las fallas críticas indican detener la operación y coordinar asistencia, no conducir al taller.
 

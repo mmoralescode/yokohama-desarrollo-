@@ -24,7 +24,15 @@ export async function api<T>(path: string, options: {method?: "POST" | "PATCH"; 
     headers: options.method ? {"Content-Type": "application/json"} : undefined,
     body: options.method ? JSON.stringify(options.body ?? {}) : undefined
   });
-  const data = await response.json().catch(() => ({detail: "El servidor devolvió una respuesta inesperada."}));
+  let data;
+  try {data = await response.json();}
+  catch {
+    // Navigating to another month can abort while the body is being read.
+    // Never turn that abort into a successful object where an array is expected.
+    options.signal?.throwIfAborted();
+    throw new Error("El servidor devolvió una respuesta inesperada.");
+  }
+  options.signal?.throwIfAborted();
   if (!response.ok) {
     const fields = Array.isArray(data.errors) ? data.errors.map((item: {campo?: string; mensaje?: string}) => `${item.campo || "Formulario"}: ${item.mensaje || "valor inválido"}`).join(". ") : "";
     throw new Error([errorMessage(data.detail), fields].filter(Boolean).join(" "));
@@ -42,7 +50,9 @@ export function useResource<T>(path: string) {
     const controller = new AbortController();
     if (lastPath.current !== path) {setData(null); lastPath.current = path;}
     setLoading(true); setError(null);
-    api<T>(path, {signal: controller.signal}).then(setData).catch(e => {
+    api<T>(path, {signal: controller.signal}).then(value => {
+      if (!controller.signal.aborted) setData(value);
+    }).catch(e => {
       if (!controller.signal.aborted) setError(e instanceof Error ? e.message : "Error de conexión.");
     }).finally(() => {if (!controller.signal.aborted) setLoading(false);});
     return () => controller.abort();

@@ -3,9 +3,10 @@ import {FormEvent, ReactNode, useState} from "react";
 import {dateLabel, numberLabel} from "@/lib/api";
 import type {Severity, TrafficLight, Visit} from "@/lib/types";
 
-export type IconName = "fleet" | "calendar" | "bell" | "arrow" | "refresh" | "plus" | "search" | "check" | "warning" | "wrench";
+export type IconName = "fleet" | "calendar" | "bell" | "arrow" | "refresh" | "plus" | "search" | "check" | "warning" | "wrench" | "dashboard";
 export function Icon({name, size = 20}: {name: IconName; size?: number}) {
   const paths: Record<IconName, ReactNode> = {
+    dashboard: <><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="11" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="18" width="7" height="3" rx="1"/></>,
     fleet: <><path d="m4 14 2-7h12l2 7M4 14h16v5H4zM7 19v2m10-2v2M7 16h1m8 0h1M8 7V4h8v3"/></>,
     calendar: <><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4m10-4v4M3 11h18M7 15h2m3 0h2m3 0h1M7 18h2"/></>,
     bell: <><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9ZM9 21h6"/></>,

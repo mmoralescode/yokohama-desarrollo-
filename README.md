@@ -17,6 +17,7 @@ El código se trasladó a este repositorio independiente sin importar el histori
 ## Qué incluye
 
 - Flotilla con búsqueda y semáforo, detalle por unidad, calendario y bandeja de alertas en español; diseño adaptable a móvil.
+- Dashboard administrativo debajo de Alertas: prioridades, próximas visitas, servicios por fecha real y unidades sin conductor o datos pendientes. [Indicadores y alcance](docs/dashboard.md).
 - Visor minimalista del Mazda3 Hatchback **2020** de Ddiaz Design para la demo **no comercial**, con créditos y licencia CC BY-NC-SA 4.0 en un desplegable. Modelo y texturas locales: giro, inclinación, zoom y teclado **sin internet**, al pulsar «Ver en 3D». Sin visor externo ni giro automático; solo renderiza cuando cambia la vista. Requiere mantener el servidor local encendido y un navegador con gráficos 3D. No cambia las reglas de mantenimiento. [Fuente, licencia y límites](docs/modelo-3d.md).
 - Registro de unidades, lecturas con fecha/hora y fuente, servicios con costo MXN, fallas/DTC y paros reales. Validación de cronología y cargas JSON atómicas de hasta 500 lecturas.
 - Estimación ponderada y robusta de km/día, respaldo del promedio de flotilla (sin mezclar demo con datos reales), escenarios y confianza. Vence lo primero: km, días o meses naturales, ajustado por severidad de cada unidad.

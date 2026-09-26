@@ -1,7 +1,7 @@
 "use client";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import {useMemo, useState} from "react";
+import {useEffect, useMemo, useState} from "react";
 import {api, dateLabel, localDate, numberLabel, useResource} from "@/lib/api";
 import {SHOW_MAZDA_3D_VIEWER} from "@/lib/feature-flags";
 import {proposalMode} from "@/lib/proposal-mode";
@@ -75,6 +75,7 @@ export default function FleetPage() {
   const [driverSearch, setDriverSearch] = useState("");
   const [status, setStatus] = useState("all");
   const [showAdd, setShowAdd] = useState(false);
+  useEffect(() => {if (new URLSearchParams(window.location.search).get("alta") === "1") setShowAdd(true);}, []);
   const [recalculating, setRecalculating] = useState(false);
   const [mutationError, setMutationError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);

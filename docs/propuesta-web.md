@@ -6,6 +6,9 @@ en el proyecto independiente `mmoralescode/yokohama-propuesta`.
 ## Qué puede probar la empresa
 
 - Consultar 20 unidades ficticias, identificadas por placas como `YKH-101-A`.
+- Abrir el [dashboard administrativo](https://yokohama-propuesta.vercel.app/dashboard)
+  debajo de Alertas: prioridades, visitas de siete días, servicios por mes y
+  registros pendientes, con accesos directos a captura y calendario.
 - Registrar otras marcas y modelos.
 - Asignar uno o varios conductores por unidad, editar la lista y buscar por
   nombre junto a la búsqueda por placa, en flotilla y calendario.

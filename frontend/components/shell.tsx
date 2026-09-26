@@ -8,7 +8,8 @@ import {proposalMode} from "@/lib/proposal-mode";
 const links: {href: string; label: string; icon: IconName}[] = [
   {href: "/", label: "Mi flotilla", icon: "fleet"},
   {href: "/calendario", label: "Calendario", icon: "calendar"},
-  {href: "/alertas", label: "Alertas", icon: "bell"}
+  {href: "/alertas", label: "Alertas", icon: "bell"},
+  {href: "/dashboard", label: "Dashboard", icon: "dashboard"}
 ];
 export default function Shell({children}: {children: ReactNode}) {
   const path = usePathname();
