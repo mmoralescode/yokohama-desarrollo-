@@ -85,6 +85,19 @@ test.use({
   serviceWorkers: "block",
 });
 
+test("el visor 3D de Mazda está oculto temporalmente y no descarga el modelo", async ({page, offlineNetwork}) => {
+  await page.goto("/");
+  await expect(page.getByRole("heading", {name: "Aún no hay unidades", exact: true})).toBeVisible();
+  await expect(page.getByTestId("mazda-viewer")).toHaveCount(0);
+  await expect(page.getByRole("button", {name: "Explorar en 3D", exact: true})).toHaveCount(0);
+  await expect(page.locator(`canvas[aria-label="${canvasLabel}"]`)).toHaveCount(0);
+  expect(offlineNetwork.modelRequests).toEqual([]);
+});
+
+// Preserve the full 3D behavior suite for the approved reactivation of the
+// visualizer. While SHOW_MAZDA_3D_VIEWER is false, only the regression above
+// is relevant to the product UI and these checks must not start the 3D scene.
+test.describe.skip("visor Mazda 3D conservado para reactivación", () => {
 function canvasIn(viewer: Locator) {
   return viewer.locator(`canvas[aria-label="${canvasLabel}"]`);
 }
@@ -377,7 +390,7 @@ test("en 375 px el modelo real y los controles de flotilla funcionan sin desbord
     viewer.getByRole("button", {name: "Volver a vista previa", exact: true}),
     page.getByRole("button", {name: "Agregar unidad", exact: true}),
     page.getByRole("button", {name: "Recalcular planes", exact: true}),
-    page.getByRole("searchbox", {name: "Buscar unidad", exact: true}),
+    page.getByRole("searchbox", {name: "Buscar por placa", exact: true}),
     page.getByRole("combobox", {name: "Filtrar estado", exact: true}),
   ]) {
     await expect(control).toBeVisible();
@@ -389,7 +402,8 @@ test("en 375 px el modelo real y los controles de flotilla funcionan sin desbord
   await credits(viewer);
   await viewer.scrollIntoViewIfNeeded();
   await page.screenshot({path: testInfo.outputPath("mazda-local-ready-mobile.png"), fullPage: true});
-  await page.getByRole("searchbox", {name: "Buscar unidad", exact: true}).fill("PRUEBA");
+  await page.getByRole("searchbox", {name: "Buscar por placa", exact: true}).fill("PRUEBA");
   await page.getByRole("combobox", {name: "Filtrar estado", exact: true}).selectOption("red");
   await expect(page.getByRole("heading", {name: "Sin coincidencias", exact: true})).toBeVisible();
+});
 });

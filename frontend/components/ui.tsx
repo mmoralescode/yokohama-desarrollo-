@@ -27,7 +27,7 @@ export function SeverityBadge({value}: {value: Severity}) {
   return <span className={`badge severity-${value}`}>{({critico: "Crítico", importante: "Importante", menor: "Menor"})[value] || "Por evaluar"}</span>;
 }
 export function StatusBadge({status}: {status: string}) {
-  const labels: Record<string, string> = {upcoming: "Próximo", due: "Vence hoy", overdue: "Vencido", immediate: "Atención inmediata", pending_validation: "Por validar", open: "Abierta", resolved: "Resuelta", proposed: "Propuesta"};
+  const labels: Record<string, string> = {upcoming: "Próximo", due: "Vence hoy", overdue: "Vencido", immediate: "Atención inmediata", pending_validation: "Por validar", open: "Abierta", resolved: "Resuelta", proposed: "Propuesta", scheduled: "Programada", rescheduled: "Reprogramada", completed: "Realizado"};
   return <span className={`badge status-${status}`}>{labels[status] || status}</span>;
 }
 export function PageHeader({eyebrow, title, description, action}: {eyebrow: string; title: string; description: string; action?: ReactNode}) {

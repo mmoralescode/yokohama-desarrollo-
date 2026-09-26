@@ -427,7 +427,7 @@ def build_plan(vehicle: dict, readings: list[dict], history: list[dict], faults:
     for entry in history:
         try:
             stamp, km = _date(entry["performed_on"]), _number(entry.get("odometer_km"))
-            if stamp <= today and km is not None and km <= current_km:
+            if stamp <= today and (km is not None and km <= current_km or entry.get("odometer_km") is None):
                 valid_history.append((stamp, km, entry))
             else:
                 warnings.append("Se omitió un servicio con fecha o kilometraje incoherente; revisar historial.")
@@ -436,8 +436,9 @@ def build_plan(vehicle: dict, readings: list[dict], history: list[dict], faults:
     # A performed-service record contains a dated, validated odometer reading.
     # It can advance the projection origin without pretending that 30 service
     # lines on one invoice are 30 independent samples of daily usage.
-    if valid_history:
-        measured_on, measured_km, _ = max(valid_history, key=lambda item: (item[0], item[1]))
+    measured_history = [item for item in valid_history if item[1] is not None]
+    if measured_history:
+        measured_on, measured_km, _ = max(measured_history, key=lambda item: (item[0], item[1]))
         if not clean or measured_on > observed_on or (measured_on == observed_on and measured_km > observed_km):
             observed_on, observed_km = measured_on, measured_km
     if observed_on < today:
@@ -501,7 +502,7 @@ def build_plan(vehicle: dict, readings: list[dict], history: list[dict], faults:
         elif service_id == "refrigerante_sucesivo":
             equivalent_ids = coolant_ids
         candidates = [item for item in valid_history if item[2].get("service_id") in equivalent_ids]
-        anchor = max(candidates, key=lambda item: (item[0], item[1])) if candidates else None
+        anchor = max(candidates, key=lambda item: (item[0], item[2].get("id", 0), item[1] if item[1] is not None else -1)) if candidates else None
         # Only explicit component-original confirmation can justify an initial anchor.
         if anchor is None and planning.get("allow_initial_anchor") and vehicle.get("initial_components_confirmed") is True:
             initial_km = _number(vehicle.get("in_service_odometer_km"))
@@ -516,6 +517,11 @@ def build_plan(vehicle: dict, readings: list[dict], history: list[dict], faults:
             services.append(result)
             continue
         anchor_date, anchor_km, _ = anchor
+        if anchor_km is None and interval_km:
+            result["explanation"] = "El último servicio está registrado con su fecha real, pero falta el kilometraje de ese día. Complete ese dato para calcular el próximo vencimiento por kilómetros."
+            result["requires_validation"] = True
+            services.append(result)
+            continue
         due_km = anchor_km + interval_km * factor if interval_km else None
         calendar_due = add_months(anchor_date, int(months)) if months else None
         day_due = anchor_date + timedelta(days=int(days)) if days else None
@@ -591,7 +597,8 @@ def build_plan(vehicle: dict, readings: list[dict], history: list[dict], faults:
                 text += f" {remaining_text.capitalize()}, al ritmo de {usage['km_per_day']:g} km/día."
                 if usage["km_per_day"] > 0 and km_remaining >= 0:
                     text += f" Aproximadamente {math.floor(km_remaining / usage['km_per_day'])} días por kilometraje; prevalece el límite indicado."
-            cycle_key = f"{service_id}:{anchor_date.isoformat()}:{anchor_km:g}"
+            mileage_key = f"{anchor_km:g}" if anchor_km is not None else "unknown"
+            cycle_key = f"{service_id}:{anchor_date.isoformat()}:{mileage_key}"
             alerts.append(_alert(vehicle.get("id"), "maintenance", cycle_key, result["severity"], text,
                                  deadline, today, service_id=service_id, threshold=threshold, stage=stage))
             alerts[-1].update({"km_remaining": result["km_remaining"], "usage_km_per_day": usage["km_per_day"]})

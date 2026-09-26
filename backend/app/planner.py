@@ -8,6 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from .engine import build_plan, estimate_usage
+from .fleet import MAZDA3_CATALOG_KEY
 from .time_utils import local_today, as_utc
 from .models import Alert, FaultReport, Notification, OdometerReading, PlanEvaluation, ServiceHistory, Vehicle, VisitPlan
 from .notifications import SimulatedChannel
@@ -59,11 +60,37 @@ def fleet_usage(session: Session, vehicle: Vehicle, policy: dict, today: date) -
     return sum(values) / len(values) if values else None
 
 
+def catalog_for_vehicle(vehicle: dict, mazda_catalog: dict) -> tuple[dict, bool]:
+    """Return only the rules deliberately associated with this unit.
+
+    Brand/model text is descriptive data, not evidence that a vehicle follows a
+    particular maintenance manual. This guards against applying Mazda3 rules to
+    every newly entered make while leaving usage and fault calculations intact.
+    """
+    if vehicle.get("maintenance_catalog") == MAZDA3_CATALOG_KEY:
+        return mazda_catalog, True
+    return {"version_catalogo": "unassigned", "servicios": []}, False
+
+
+def catalog_warning(vehicle: dict) -> tuple[str, str]:
+    key = vehicle.get("maintenance_catalog")
+    if key:
+        return (
+            "maintenance-catalog-unavailable",
+            f"El catálogo de mantenimiento '{key}' no está cargado para esta unidad; no se aplicaron reglas de otra marca.",
+        )
+    return (
+        "maintenance-catalog-missing",
+        "La unidad no tiene catálogo de mantenimiento asignado; no se aplicaron reglas Mazda ni de otra marca.",
+    )
+
+
 def evaluate(session: Session, vehicle: Vehicle, catalog: dict, policy: dict) -> dict:
     inputs = vehicle_inputs(session, vehicle)
     today = current_date()
     inputs["fleet_usage_km_per_day"] = fleet_usage(session, vehicle, policy, today)
-    fingerprint = stable_hash({"today": today.isoformat(), "inputs": inputs, "catalog": catalog, "policy": policy, "engine_sha256": ENGINE_SHA256})
+    plan_catalog, catalog_available = catalog_for_vehicle(inputs["vehicle"], catalog)
+    fingerprint = stable_hash({"today": today.isoformat(), "inputs": inputs, "catalog": plan_catalog, "policy": policy, "engine_sha256": ENGINE_SHA256})
     # Do not load the large historical input/catalog snapshots for a cache hit.
     cached = session.execute(select(PlanEvaluation.id, PlanEvaluation.result).where(PlanEvaluation.fingerprint == fingerprint)).first()
     if cached:
@@ -75,11 +102,24 @@ def evaluate(session: Session, vehicle: Vehicle, catalog: dict, policy: dict) ->
         if actual_alerts == expected_alerts and actual_visits == expected_visits:
             return result  # Materialization already committed atomically with this evaluation.
     else:
-        result = build_plan(**inputs, catalog=catalog, config=policy, today=today)
+        result = build_plan(**inputs, catalog=plan_catalog, config=policy, today=today)
+        if not catalog_available:
+            stage, message = catalog_warning(inputs["vehicle"])
+            result["warnings"].append(message)
+            result["alerts"].append({
+                "key": f"{vehicle.id}:data:{stage}", "vehicle_id": vehicle.id,
+                "service_id": None, "fault_id": None, "severity": "menor",
+                "message": message, "deadline": None, "days_remaining": None,
+                "threshold_days": None, "status": "open", "kind": "data", "stage": stage,
+            })
+            # A catalog absence is informational (gray), unless a fault already
+            # makes the unit actionable or critical (amber/red).
+            if result["traffic_light"] in {"green", "gray"}:
+                result["traffic_light"] = "gray"
         evaluation = PlanEvaluation(vehicle_id=vehicle.id, fingerprint=fingerprint,
-                                    catalog_version=catalog["version_catalogo"], policy_version=policy["policy_version"],
+                                    catalog_version=plan_catalog["version_catalogo"], policy_version=policy["policy_version"],
                                     inputs_snapshot={**inputs, "runtime": {"engine_sha256": ENGINE_SHA256}},
-                                    catalog_snapshot=catalog, policy_snapshot=policy, result=result)
+                                    catalog_snapshot=plan_catalog, policy_snapshot=policy, result=result)
         session.add(evaluation)
         session.flush()
     # Even a cached evaluation must reconcile materialized projections: restoring

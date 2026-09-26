@@ -14,17 +14,52 @@ class InputModel(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
 
+def normalize_driver_names(value: object) -> list[str]:
+    """Keep names human-readable without duplicate assignments per unit."""
+    if not isinstance(value, list) or len(value) > 20:
+        raise ValueError("Indique una lista de hasta 20 conductores.")
+    names, seen = [], set()
+    for item in value:
+        if not isinstance(item, str):
+            raise ValueError("Cada conductor debe tener un nombre válido.")
+        name = " ".join(item.split())
+        if not name or len(name) > 100:
+            raise ValueError("Cada nombre de conductor debe tener entre 1 y 100 caracteres.")
+        key = name.casefold()
+        if key not in seen:
+            names.append(name)
+            seen.add(key)
+    return names
+
+
 class VehicleCreate(InputModel):
     vin: str = Field(min_length=17, max_length=17)
     plate: str = Field(min_length=3, max_length=16)
-    model_year: int = Field(ge=2021, le=2026)
-    variant_id: str = Field(min_length=1, max_length=80)
-    transmission: Literal["AT6", "MT6"]
+    model_year: int = Field(ge=1886, le=2100)
+    # A recognized Mazda variant remains a short route for the legacy form.
+    # Other makes are entered manually and do not need a catalog variant.
+    make: str | None = Field(default=None, min_length=1, max_length=80)
+    model: str | None = Field(default=None, min_length=1, max_length=80)
+    variant_id: str | None = Field(default=None, min_length=1, max_length=80)
+    version: str | None = Field(default=None, min_length=1, max_length=80)
+    body_style: str | None = Field(default=None, min_length=1, max_length=20)
+    engine: str | None = Field(default=None, min_length=1, max_length=20)
+    transmission: str | None = Field(default=None, min_length=1, max_length=10)
+    drive: str | None = Field(default=None, min_length=1, max_length=10)
+    fuel_type: str | None = Field(default=None, min_length=1, max_length=40)
+    color: str | None = Field(default=None, min_length=1, max_length=40)
+    maintenance_catalog: str | None = Field(default=None, min_length=1, max_length=80)
+    drivers: list[str] = Field(default_factory=list)
     current_km: Km
     in_service_date: date
     usage_regime: Literal["normal", "severe"] = "normal"
     is_synthetic: bool = False
     severity_multiplier: float | None = Field(default=None, ge=0.1, le=1, allow_inf_nan=False)
+
+    @field_validator("drivers", mode="before")
+    @classmethod
+    def valid_drivers(cls, value: object) -> list[str]:
+        return normalize_driver_names(value)
 
     @field_validator("vin")
     @classmethod
@@ -81,11 +116,19 @@ class ReadingCreate(InputModel):
 class VehiclePolicyUpdate(InputModel):
     severity_multiplier: float | None = Field(default=None, ge=0.1, le=1, allow_inf_nan=False)
     usage_regime: Literal["normal", "severe"] | None = None
+    drivers: list[str] | None = None
+
+    @field_validator("drivers", mode="before")
+    @classmethod
+    def valid_drivers(cls, value: object) -> list[str]:
+        # Omitted means unchanged; an explicit [] clears the assignments.
+        # Explicit null is rejected instead of silently ignoring an edit.
+        return normalize_driver_names(value)
 
     @model_validator(mode="after")
     def nonempty(self):
-        if self.severity_multiplier is None and self.usage_regime is None:
-            raise ValueError("Indique factor de severidad o régimen de uso.")
+        if self.severity_multiplier is None and self.usage_regime is None and self.drivers is None:
+            raise ValueError("Indique conductores, factor de severidad o régimen de uso.")
         return self
 
 
@@ -107,6 +150,44 @@ class ServiceCreate(InputModel):
 
 class ReadingBatch(InputModel):
     readings: list[ReadingCreate] = Field(min_length=1, max_length=500)
+
+
+class AppointmentCreate(InputModel):
+    service_ids: list[str] = Field(min_length=1, max_length=100)
+    scheduled_date: date
+    original_visit_id: str | None = Field(default=None, max_length=220)
+    notes: str = Field(default="", max_length=2000)
+
+    @field_validator("service_ids")
+    @classmethod
+    def unique_services(cls, value):
+        if len(value) != len(set(value)) or any(not item or len(item) > 80 for item in value):
+            raise ValueError("Seleccione servicios distintos y válidos.")
+        return value
+
+
+class AppointmentUpdate(InputModel):
+    scheduled_date: date
+    notes: str | None = Field(default=None, max_length=2000)
+
+
+class ServiceBatchCreate(InputModel):
+    service_ids: list[str] = Field(default_factory=list, max_length=100)
+    performed_on: date
+    odometer_km: Km | None = None
+    notes: str = Field(default="", max_length=2000)
+    appointment_id: str | None = Field(default=None, max_length=36)
+    manual_description: str | None = Field(default=None, min_length=3, max_length=200)
+    maintenance_type: Literal["preventive", "corrective", "unknown"] = "unknown"
+
+    @model_validator(mode="after")
+    def actual_services(self):
+        AppointmentCreate.unique_services(self.service_ids)
+        if not self.service_ids and not self.manual_description:
+            raise ValueError("Seleccione al menos un servicio o describa el trabajo realizado.")
+        if self.performed_on > local_today():
+            raise ValueError("La fecha realizada no puede estar en el futuro.")
+        return self
 
 
 class FaultCreate(InputModel):

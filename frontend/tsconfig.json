@@ -37,7 +37,17 @@
     ".next-build/types/**/*.ts",
     ".next-build/dev/types/**/*.ts",
     ".next-build-final/types/**/*.ts",
-    ".next-build-final/dev/types/**/*.ts"
+    ".next-build-final/dev/types/**/*.ts",
+    ".next-proposal/types/**/*.ts",
+    ".next-proposal/dev/types/**/*.ts",
+    ".next-proposal-dev/types/**/*.ts",
+    ".next-proposal-dev/dev/types/**/*.ts",
+    ".next-admin/types/**/*.ts",
+    ".next-admin/dev/types/**/*.ts",
+    ".next-drivers-proposal/types/**/*.ts",
+    ".next-drivers-proposal/dev/types/**/*.ts",
+    ".next-drivers/types/**/*.ts",
+    ".next-drivers/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules"

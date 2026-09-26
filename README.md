@@ -1,8 +1,16 @@
 # Sistema para Yokohama — MVP local
 
-Panel y API independientes para planear mantenimiento de Mazda3 mexicanos 2021–2026. Repositorio: [mmoralescode/yokohama-desarrollo-](https://github.com/mmoralescode/yokohama-desarrollo-), rama `main`. La aprobación de desarrollo permite las fases 2–4; **no sustituye la validación mecánica del catálogo por Mazda**.
+Panel administrativo y API independientes para flotillas multimarca, con catálogo Mazda3 mexicano preservado. Repositorio: [mmoralescode/yokohama-desarrollo-](https://github.com/mmoralescode/yokohama-desarrollo-), rama `main`.
 
-Todo vive en este directorio: no modifica rutas, usuarios, folios, base de datos ni despliegue de EXCOBA. No publicar esta demostración en Internet: aún no implementa identidad de operadores, roles ni aislamiento entre clientes.
+Todo vive en este directorio: no modifica rutas, usuarios, folios, base de datos ni despliegue de EXCOBA. El sistema operativo y su base SQLite mantienen acceso local. La propuesta pública de Vercel usa exclusivamente ejemplos sintéticos y almacenamiento independiente en cada navegador; no expone esa base ni la API local.
+
+## Agenda administrativa y propuesta web
+
+El calendario permite cambiar la fecha de una visita y registrar uno o varios servicios realizados en días anteriores. La fecha del trabajo y el momento de captura se guardan por separado. El kilometraje puede quedar pendiente; no se inventa una lectura y no se reinicia un pronóstico por km sin evidencia. Los cambios de agenda sobreviven a los recálculos, conservan su historial y no modifican los límites técnicos.
+
+La migración v4 preserva unidades, historiales, evaluaciones y alertas; genera respaldo verificado antes de actualizar una base existente. Sólo las placas originales del generador (`DEMO-001` a `DEMO-020`, verificadas junto con su VIN sintético) se sustituyen por placas ficticias `YKH-101-A` a `YKH-120-A`.
+
+Para publicar la propuesta se compila `frontend` con `NEXT_PUBLIC_YOKOHAMA_PROPOSAL_MODE=true`, ya configurado en `frontend/vercel.json`. `scripts/export-proposal.py` crea los ejemplos en una base temporal nueva y genera `frontend/public/proposal/fleet.json`; nunca abre la base operativa. La propuesta permite probar altas, cambios de fecha y captura atrasada. Los cambios persisten sólo en el navegador y los pronósticos iniciales son ejemplos; el motor completo continúa en la aplicación local. `/api/*` queda inaccesible en la versión pública. No subir variables de API ni archivos SQLite a Vercel.
 
 El código se trasladó a este repositorio independiente sin importar el historial de EXCOBA, bases de datos, credenciales ni archivos generados. Ver [estructura y traslado](docs/repositorio-independiente.md). Publicar el código en GitHub no despliega el panel ni habilita acceso público a los datos de una flotilla.
 

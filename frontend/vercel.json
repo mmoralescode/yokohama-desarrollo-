@@ -1,0 +1,7 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "nextjs",
+  "buildCommand": "npm run build",
+  "env": {"NEXT_PUBLIC_YOKOHAMA_PROPOSAL_MODE": "true"},
+  "build": {"env": {"NEXT_PUBLIC_YOKOHAMA_PROPOSAL_MODE": "true"}}
+}

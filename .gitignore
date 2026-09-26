@@ -16,6 +16,7 @@
 **/out/
 **/playwright-report/
 **/test-results/
+**/test-results-*/
 **/*.tsbuildinfo
 **/next-env.d.ts
 **/.env
@@ -24,3 +25,4 @@
 **/*.log
 tmp/
 .runtime/
+**/.vercel/

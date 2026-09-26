@@ -1,7 +1,7 @@
 import type {Metadata} from "next";
 import Shell from "@/components/shell";
 import "./globals.css";
-export const metadata: Metadata = {title: "Yokohama | Flotilla", description: "MVP local de planeación de mantenimiento para Mazda3 México", robots: {index: false, follow: false}};
+export const metadata: Metadata = {title: "Yokohama | Flotilla", description: "MVP local de planeación de mantenimiento para flotillas multimarca", robots: {index: false, follow: false}};
 export default function RootLayout({children}: {children: React.ReactNode}) {
   return <html lang="es-MX" data-scroll-behavior="smooth"><body><Shell>{children}</Shell></body></html>;
 }

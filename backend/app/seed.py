@@ -14,6 +14,7 @@ from sqlalchemy import select
 
 from .database import make_database, migrate
 from .engine import matches_service
+from .fleet import MAZDA3_CATALOG_KEY
 from .models import FaultReport, OdometerReading, ServiceCatalog, ServiceHistory, Vehicle
 from .planner import evaluate
 from .time_utils import local_today
@@ -41,7 +42,7 @@ def seed_database(database_url: str, *, seed: int = 2026, count: int = 20, today
                 # Stable across repeated runs and --seed variations: no accidental
                 # second fleet merely by changing pseudo-random variability.
                 vin = f"DEM{index + 1:014d}"
-                plate = f"DEMO-{index + 1:03d}"
+                plate = f"YKH-{101 + index:03d}-A"
                 if session.scalar(select(Vehicle.id).where((Vehicle.vin == vin) | (Vehicle.plate == plate))) is not None:
                     skipped += 1
                     continue
@@ -70,7 +71,9 @@ def seed_database(database_url: str, *, seed: int = 2026, count: int = 20, today
                 vehicle = Vehicle(vin=vin, plate=plate, model_year=year, variant_id=variant["id"], version=variant["version"],
                                   body_style=variant["carroceria"], engine=variant["motor"], transmission=variant["transmisiones"][-1],
                                   drive=variant["traccion"], current_km=odo_by_date[today], in_service_date=commissioned,
-                                  usage_regime="severe" if index % 5 == 0 else "normal", is_synthetic=True)
+                                  usage_regime="severe" if index % 5 == 0 else "normal", is_synthetic=True,
+                                  make="Mazda", model="Mazda3", fuel_type="Gasolina",
+                                  maintenance_catalog=MAZDA3_CATALOG_KEY)
                 session.add(vehicle)
                 session.flush()
                 dates = sorted(odo_by_date)

@@ -1,5 +1,6 @@
 "use client";
 import {useCallback, useEffect, useRef, useState} from "react";
+import {proposalMode} from "./proposal-mode";
 export {localDate, localDateTime, mexicoDateTimeToISO, dateTimeLabel} from "./dates";
 
 function errorMessage(detail: unknown): string {
@@ -11,6 +12,13 @@ function errorMessage(detail: unknown): string {
   return "No se pudo completar la solicitud.";
 }
 export async function api<T>(path: string, options: {method?: "POST" | "PATCH"; body?: unknown; signal?: AbortSignal} = {}): Promise<T> {
+  if (proposalMode) {
+    options.signal?.throwIfAborted();
+    const {proposalApi} = await import("./proposal-api");
+    const result = await proposalApi<T>(path, options);
+    options.signal?.throwIfAborted();
+    return result;
+  }
   const response = await fetch(`/api/backend/${path}`, {
     method: options.method || "GET", signal: options.signal, cache: "no-store",
     headers: options.method ? {"Content-Type": "application/json"} : undefined,

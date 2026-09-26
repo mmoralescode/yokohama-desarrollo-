@@ -24,13 +24,15 @@ class SchemaMigration(Base):
 
 class Vehicle(Base):
     __tablename__ = "vehicles"
-    __table_args__ = (CheckConstraint("current_km >= 0"), CheckConstraint("model_year BETWEEN 2021 AND 2026"),
+    __table_args__ = (CheckConstraint("current_km >= 0"), CheckConstraint("model_year BETWEEN 1886 AND 2100"),
                       CheckConstraint("severity_multiplier BETWEEN 0.1 AND 1"))
     id: Mapped[int] = mapped_column(primary_key=True)
     vin: Mapped[str] = mapped_column(String(17), unique=True)
     plate: Mapped[str] = mapped_column(String(16), unique=True)
     model_year: Mapped[int] = mapped_column(Integer)
-    variant_id: Mapped[str] = mapped_column(String(80))
+    # Catalog-specific variant. Manual entries for other makes intentionally
+    # leave this empty rather than inventing a Mazda identifier.
+    variant_id: Mapped[str | None] = mapped_column(String(80), nullable=True)
     version: Mapped[str] = mapped_column(String(80))
     body_style: Mapped[str] = mapped_column(String(20))
     engine: Mapped[str] = mapped_column(String(20))
@@ -41,6 +43,14 @@ class Vehicle(Base):
     usage_regime: Mapped[str] = mapped_column(String(10), default="normal")
     is_synthetic: Mapped[bool] = mapped_column(Boolean, default=False)
     severity_multiplier: Mapped[float] = mapped_column(Float, default=1.0, server_default="1")
+    make: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    model: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    fuel_type: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    color: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    maintenance_catalog: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    # Administrative assignments: a shared unit may have several drivers.
+    # Existing units gain an empty list, never invented personal data.
+    drivers: Mapped[list[str]] = mapped_column(JSON, default=list, server_default="[]")
 
 
 class OdometerReading(Base):
@@ -73,7 +83,7 @@ class ServiceHistory(Base):
     vehicle_id: Mapped[int] = mapped_column(ForeignKey("vehicles.id"), index=True)
     service_id: Mapped[str] = mapped_column(ForeignKey("service_catalog.id"))
     performed_on: Mapped[date] = mapped_column(Date)
-    odometer_km: Mapped[float] = mapped_column(Float)
+    odometer_km: Mapped[float | None] = mapped_column(Float, nullable=True)
     notes: Mapped[str] = mapped_column(Text, default="")
     catalog_snapshot: Mapped[dict] = mapped_column(JSON)
     cost: Mapped[float | None] = mapped_column(Float, nullable=True)
@@ -82,6 +92,36 @@ class ServiceHistory(Base):
     predicted_due_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     prediction_error_days: Mapped[int | None] = mapped_column(Integer, nullable=True)
     prediction_evaluation_id: Mapped[int | None] = mapped_column(ForeignKey("plan_evaluations.id"), nullable=True)
+    # Old rows have no trustworthy capture timestamp. New facts retain both
+    # the actual service date and the later administrative capture timestamp.
+    captured_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, default=utc_now)
+    appointment_id: Mapped[str | None] = mapped_column(ForeignKey("calendar_appointments.id"), nullable=True)
+
+
+class CalendarAppointment(Base):
+    __tablename__ = "calendar_appointments"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    vehicle_id: Mapped[int] = mapped_column(ForeignKey("vehicles.id"), index=True)
+    scheduled_date: Mapped[date] = mapped_column(Date, index=True)
+    service_ids: Mapped[list] = mapped_column(JSON)
+    completed_service_ids: Mapped[list] = mapped_column(JSON, default=list)
+    cycle_anchors: Mapped[dict] = mapped_column(JSON)
+    original_visit_id: Mapped[str | None] = mapped_column(String(220), nullable=True)
+    original_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    notes: Mapped[str] = mapped_column(Text, default="")
+    status: Mapped[str] = mapped_column(String(16), default="scheduled")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+
+
+class AppointmentChange(Base):
+    __tablename__ = "appointment_changes"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    appointment_id: Mapped[str] = mapped_column(ForeignKey("calendar_appointments.id"), index=True)
+    previous_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    scheduled_date: Mapped[date] = mapped_column(Date)
+    changed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    notes: Mapped[str] = mapped_column(Text, default="")
 
 
 class FaultReport(Base):

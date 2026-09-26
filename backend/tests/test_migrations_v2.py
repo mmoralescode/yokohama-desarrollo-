@@ -113,7 +113,7 @@ def test_upgrade_preserves_all_records_ids_and_snapshots_and_backups_wal(v1):
     engine, sessions, path = v1
     before = original_rows(engine)
     migrate(engine)
-    assert versions(engine) == {1, 2}
+    assert versions(engine) == {1, 2, 3, 4, 5}
     assert_original_rows_preserved(engine, before)
     backups = list(path.parent.glob("company.db.pre-v2-*.bak"))
     assert len(backups) == 1
@@ -123,7 +123,9 @@ def test_upgrade_preserves_all_records_ids_and_snapshots_and_backups_wal(v1):
         assert backup.execute("SELECT notes FROM service_history").fetchone()[0] == "Nota original con ñ"
         assert backup.execute("SELECT COUNT(*) FROM notification_outbox").fetchone()[0] == 1
     with sessions() as session:
-        assert session.get(Vehicle, 41).severity_multiplier == 1
+        vehicle = session.get(Vehicle, 41)
+        assert vehicle.severity_multiplier == 1
+        assert (vehicle.make, vehicle.model, vehicle.maintenance_catalog) == ("Mazda", "Mazda3", "mazda3-mx.v0.1.0")
         history = session.get(ServiceHistory, 81)
         assert history.cost is None and history.maintenance_type == "unknown"
         assert history.prediction_error_days is None and history.prediction_evaluation_id is None
@@ -225,7 +227,7 @@ def test_concurrent_startup_upgrades_only_once(v1):
         with ThreadPoolExecutor(max_workers=2) as executor:
             results = list(executor.map(migrate, (engine, other)))
         assert results == [None, None]
-        assert versions(engine) == {1, 2}
+        assert versions(engine) == {1, 2, 3, 4, 5}
         with engine.connect() as connection:
             assert connection.exec_driver_sql("SELECT COUNT(*) FROM odometer_readings").scalar_one() == 2
     finally:
@@ -236,7 +238,7 @@ def test_fresh_database_orm_defaults_and_constraints(tmp_path):
     engine, sessions = make_database(f"sqlite:///{(tmp_path / 'fresh.db').as_posix()}")
     migrate(engine)
     migrate(engine)
-    assert versions(engine) == {1, 2}
+    assert versions(engine) == {1, 2, 3, 4, 5}
     with sessions.begin() as session:
         vehicle = Vehicle(vin="DEM00000000000123", plate="DEFAULT-123", model_year=2021, variant_id="V21S-i",
                           version="i", body_style="sedan", engine="G25", transmission="AT6", drive="FWD",
@@ -256,3 +258,39 @@ def test_fresh_database_orm_defaults_and_constraints(tmp_path):
     with pytest.raises(IntegrityError), engine.begin() as connection:
         connection.exec_driver_sql("UPDATE odometer_readings SET source='unknown'")
     engine.dispose()
+
+
+def test_v2_to_v3_preserves_references_and_accepts_manual_vehicle_years(v1):
+    """The multibrand upgrade starts from a real v2 shape, not current ORM DDL."""
+    engine, sessions, path = v1
+    with engine.connect() as connection:
+        connection.exec_driver_sql("BEGIN IMMEDIATE")
+        database._upgrade_v1_to_v2(connection)
+        connection.commit()
+    assert versions(engine) == {1, 2}
+    with engine.connect() as connection:
+        before = {
+            table: list(connection.exec_driver_sql(f'SELECT * FROM "{table}" ORDER BY 1'))
+            for table in ("vehicles", "odometer_readings", "service_history", "fault_reports", "plan_evaluations", "alerts", "visit_plans", "notification_outbox")
+        }
+    migrate(engine)
+    assert versions(engine) == {1, 2, 3, 4, 5}
+    assert len(list(path.parent.glob("company.db.pre-v3-*.bak"))) == 1
+    with engine.connect() as connection:
+        assert connection.exec_driver_sql("PRAGMA foreign_key_check").fetchall() == []
+        for table, rows in before.items():
+            columns = [column["name"] for column in inspect(connection).get_columns(table) if column["name"] not in {"make", "model", "fuel_type", "color", "maintenance_catalog", "captured_at", "appointment_id", "drivers"}]
+            projection = ", ".join(f'"{column}"' for column in columns)
+            assert list(connection.exec_driver_sql(f'SELECT {projection} FROM "{table}" ORDER BY 1')) == rows
+    with sessions.begin() as session:
+        legacy = session.get(Vehicle, 41)
+        assert (legacy.id, legacy.make, legacy.model, legacy.maintenance_catalog) == (41, "Mazda", "Mazda3", "mazda3-mx.v0.1.0")
+        for index, year in enumerate((1886, 2100), start=1):
+            session.add(Vehicle(vin=f"DEM00000000000{700 + index}", plate=f"YEAR-{year}", model_year=year,
+                                variant_id=None, version="Manual", body_style="sedan", engine="electrico",
+                                transmission="CVT", drive="FWD", current_km=0, in_service_date=date(2026, 1, 1),
+                                make="Prueba", model="Multimarca"))
+    with pytest.raises(IntegrityError), sessions.begin() as session:
+        session.add(Vehicle(vin="DEM00000000000709", plate="YEAR-1885", model_year=1885, variant_id=None,
+                            version="Manual", body_style="sedan", engine="electrico", transmission="CVT", drive="FWD",
+                            current_km=0, in_service_date=date(2026, 1, 1), make="Prueba", model="Multimarca"))

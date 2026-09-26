@@ -1,0 +1,11 @@
+node_modules
+.next
+.next-*
+.env*
+!.env.example
+.git
+e2e
+test-results*
+playwright-report
+*.tsbuildinfo
+public/models

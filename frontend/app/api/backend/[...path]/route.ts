@@ -6,8 +6,8 @@ export const dynamic = "force-dynamic";
 const MAX_BODY_BYTES = 32_768;
 const routes: Record<string, RegExp[]> = {
   GET: [/^vehicles$/, /^vehicles\/[1-9]\d*$/, /^vehicles\/[1-9]\d*\/plan$/, /^calendar$/, /^alerts$/, /^catalog$/, /^variants$/, /^notifications$/, /^metrics$/],
-  POST: [/^vehicles$/, /^vehicles\/[1-9]\d*\/(readings|services|faults|downtime)$/, /^vehicles\/[1-9]\d*\/readings\/batch$/, /^recalculate$/],
-  PATCH: [/^faults\/[1-9]\d*\/resolve$/, /^vehicles\/[1-9]\d*$/, /^vehicles\/[1-9]\d*\/downtime\/[1-9]\d*$/]
+  POST: [/^vehicles$/, /^vehicles\/[1-9]\d*\/(readings|services|faults|downtime|appointments)$/, /^vehicles\/[1-9]\d*\/(readings|services)\/batch$/, /^recalculate$/],
+  PATCH: [/^faults\/[1-9]\d*\/resolve$/, /^vehicles\/[1-9]\d*$/, /^vehicles\/[1-9]\d*\/downtime\/[1-9]\d*$/, /^vehicles\/[1-9]\d*\/appointments\/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/]
 };
 function error(detail: string, status: number) { return NextResponse.json({detail}, {status, headers: {"Cache-Control": "no-store"}}); }
 

@@ -2,14 +2,15 @@ export type Severity = "critico" | "importante" | "menor";
 export type TrafficLight = "red" | "amber" | "green" | "gray";
 export type Confidence = "alta" | "media" | "baja";
 export interface Vehicle {
-  id: number; vin: string; plate: string; model_year: number; variant_id: string;
+  id: number; vin: string; plate: string; make: string; model: string; model_year: number; variant_id: string | null;
   version: string; body_style: string; engine: string; transmission: string; drive: string;
-  current_km: number; in_service_date: string; usage_regime: string; is_synthetic: boolean; severity_multiplier?: number;
+  fuel_type?: string | null; color?: string | null; maintenance_catalog?: string | null;
+  current_km: number; in_service_date: string; usage_regime: string; is_synthetic: boolean; severity_multiplier?: number; drivers?: string[];
 }
 export interface VehicleSummary extends Vehicle {traffic_light: TrafficLight; next_visit_date: string | null; open_alerts: number; usage_km_per_day: number | null}
 export interface Reading {id: number; vehicle_id: number; date: string; recorded_at?: string; source?: "manual" | "gps" | "obd"; odometer_km: number}
 export type MaintenanceType = "preventive" | "corrective" | "unknown";
-export interface ServiceHistory {id: number; service_id: string; performed_on: string; odometer_km: number; notes: string; cost?: number | null; maintenance_type?: MaintenanceType; fault_id?: number | null; predicted_due_date?: string | null; prediction_error_days?: number | null}
+export interface ServiceHistory {id: number; service_id: string; performed_on: string; odometer_km: number | null; notes: string; captured_at?: string | null; service_name?: string | null; catalog_snapshot?: {servicio?: string}; cost?: number | null; maintenance_type?: MaintenanceType; fault_id?: number | null; predicted_due_date?: string | null; prediction_error_days?: number | null}
 export interface Fault {id: number; description: string; dtc: string | null; reported_on: string; severity: Severity; status: string; safe_to_defer: boolean; deadline: string | null; resolution_notes: string | null; assessment_message?: string; safety_evaluation?: string; service_id?: string | null; was_predicted?: boolean | null}
 export interface Downtime {id: number; vehicle_id: number; started_at: string; ended_at: string | null; notes: string}
 export interface VehicleDetail {vehicle: Vehicle; readings: Reading[]; history: ServiceHistory[]; faults: Fault[]; downtime?: Downtime[]}
@@ -21,7 +22,7 @@ export interface ServicePlan {
   prediction: {optimistic: string | null; probable: string | null; pessimistic: string | null};
   explanation: string; requires_validation: boolean; source_urls: string[]; duration_hours: number | null;
 }
-export interface Visit {id: string; planned_date: string; service_ids: string[]; fault_ids?: number[]; total_duration_hours: number | null; status: string; explanation: string; provisional: boolean; vehicle_id?: number; plate?: string; version?: string}
+export interface Visit {id: string; planned_date: string; service_ids: string[]; fault_ids?: number[]; total_duration_hours: number | null; status: string; explanation: string; provisional: boolean; vehicle_id?: number; plate?: string; version?: string; drivers?: string[]; appointment_id?: string | null; performed_on?: string | null; captured_at?: string | null; original_date?: string | null; service_names?: string[]; notes?: string; changes?: {previous_date: string; scheduled_date: string; changed_at: string; notes?: string}[]}
 export interface Alert {id?: number; key: string; vehicle_id: number; plate?: string; service_id: string | null; fault_id: number | null; severity: Severity; message: string; deadline: string | null; days_remaining: number | null; threshold_days: number | null; status: string; kind: string}
 export interface Plan {
   vehicle_id: number; generated_on: string; catalog_version: string; mode: string;

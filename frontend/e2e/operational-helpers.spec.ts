@@ -2,6 +2,7 @@ import {expect, test} from "@playwright/test";
 import {localDate, localDateTime, mexicoDateTimeToISO} from "../lib/dates";
 import {compareUrgency} from "../lib/fleet-order";
 import type {VehicleSummary} from "../lib/types";
+import {matchesDriverNames, parseDriverNames} from "../lib/drivers";
 
 test("Mexico City date is independent of the host clock zone", () => {
   expect(localDate(new Date("2026-09-22T02:30:00Z"))).toBe("2026-09-21");
@@ -26,4 +27,18 @@ test("fleet urgency precedes visit dates and does not mutate the input", () => {
   const vehicles = [vehicle(1, "green", "2026-09-21"), vehicle(2, "red", "2026-09-30"), vehicle(3, "amber", null), vehicle(4, "red", "2026-09-22"), vehicle(5, "gray", null)];
   expect([...vehicles].sort(compareUrgency).map(item => item.id)).toEqual([4, 2, 3, 5, 1]);
   expect(vehicles.map(item => item.id)).toEqual([1, 2, 3, 4, 5]);
+});
+
+test("driver names keep accents, deduplicate case and allow an unassigned unit", () => {
+  expect(parseDriverNames("  José   Pérez \nAna López\n JOSÉ PÉREZ \n\n")).toEqual(["José Pérez", "Ana López"]);
+  expect(parseDriverNames(" \n\t")).toEqual([]);
+  expect(() => parseDriverNames("A".repeat(101))).toThrow("100 caracteres");
+  expect(() => parseDriverNames(Array.from({length: 21}, (_, index) => `Conductor ${index}`).join("\n"))).toThrow("20 conductores");
+});
+
+test("driver search ignores accents and case without merging two different people", () => {
+  expect(matchesDriverNames(["José Pérez", "Ana López"], "  PEREZ jose ")).toBe(true);
+  expect(matchesDriverNames(["José Pérez", "Ana López"], "jose lopez")).toBe(false);
+  expect(matchesDriverNames(undefined, "")).toBe(true);
+  expect(matchesDriverNames(undefined, "ana")).toBe(false);
 });

@@ -44,6 +44,20 @@ def service_history(km=15000, performed="2026-08-01", service_id="oil"):
     return [{"service_id": service_id, "performed_on": performed, "odometer_km": km}]
 
 
+def test_unknown_latest_service_mileage_never_reuses_an_older_cycle(vehicle, policy):
+    history = service_history(km=14000, performed="2026-07-01") + service_history(km=None, performed="2026-08-01")
+    result = plan(vehicle, policy, history=history)
+    assert result["services"][0]["status"] == "pending_validation"
+    assert result["services"][0]["due_odometer"] is None
+
+
+def test_date_only_service_can_anchor_a_calendar_only_rule(vehicle, policy):
+    result = plan(vehicle, policy, services=[rule(intervalo_km=None, intervalo_meses=1)], history=service_history(km=None))
+    assert result["services"][0]["due_date"] == "2026-09-01"
+    assert result["services"][0]["due_odometer"] is None
+    assert any(row["kind"] == "maintenance" for row in result["alerts"])
+
+
 def plan(vehicle, policy, services=None, history=None, data=None, faults=None):
     return build_plan(vehicle, readings() if data is None else data,
                       service_history() if history is None else history, faults or [],

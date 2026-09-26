@@ -3,11 +3,13 @@ import asyncio
 from contextlib import asynccontextmanager, suppress
 from datetime import date
 import hmac
+import hashlib
 import json
 import logging
 import os
 from pathlib import Path
 from typing import Literal
+from uuid import uuid4
 
 from fastapi import APIRouter, Depends, FastAPI, Header, HTTPException, Query, Request
 from fastapi.exceptions import RequestValidationError
@@ -18,9 +20,11 @@ from sqlalchemy.orm import Session
 
 from .database import make_database, migrate
 from .engine import matches_service, validate_policy as validate_engine_policy
-from .models import Alert, Downtime, FaultReport, Notification, OdometerReading, PlanEvaluation, ServiceCatalog, ServiceHistory, Vehicle, VisitPlan
+from .fleet import MAZDA3_CATALOG_KEY
+from .models import Alert, AppointmentChange, CalendarAppointment, Downtime, FaultReport, Notification, OdometerReading, PlanEvaluation, ServiceCatalog, ServiceHistory, Vehicle, VisitPlan
+from .calendar_admin import appointment_payload, calendar_entries, cycle_anchors, finish_appointments, next_visit_date, remaining_services
 from .planner import evaluate, serialize, vehicle_inputs
-from .schemas import DowntimeClose, DowntimeCreate, FaultCreate, FaultResolve, ReadingBatch, ReadingCreate, ServiceCreate, VehicleCreate, VehiclePolicyUpdate
+from .schemas import AppointmentCreate, AppointmentUpdate, DowntimeClose, DowntimeCreate, FaultCreate, FaultResolve, ReadingBatch, ReadingCreate, ServiceBatchCreate, ServiceCreate, VehicleCreate, VehiclePolicyUpdate
 from .settings import validate_policy
 from .metrics import fleet_metrics
 from .odometer import OdometerConflict, validate_reading
@@ -160,6 +164,12 @@ def create_app(database_url: str | None = None, api_key: str | None = None, poli
             raise HTTPException(404, "Unidad no encontrada.")
         return vehicle
 
+    def compact_name(value: str) -> str:
+        return "".join(character for character in value.casefold() if character.isalnum())
+
+    def uses_mazda3_catalog(vehicle: Vehicle) -> bool:
+        return vehicle.maintenance_catalog == MAZDA3_CATALOG_KEY
+
     def effective_fault(payload: dict, plan: dict) -> dict:
         """API displays the current conservative decision, retains operator claims.
 
@@ -179,7 +189,7 @@ def create_app(database_url: str | None = None, api_key: str | None = None, poli
                    "time_precision": row.time_precision, "is_reading": True}
                   for row in session.scalars(select(OdometerReading).where(OdometerReading.vehicle_id == vehicle.id))]
         points += [{"date": row.performed_on, "km": row.odometer_km}
-                   for row in session.scalars(select(ServiceHistory).where(ServiceHistory.vehicle_id == vehicle.id))]
+                   for row in session.scalars(select(ServiceHistory).where(ServiceHistory.vehicle_id == vehicle.id, ServiceHistory.odometer_km.is_not(None)))]
         validate_reading(when=when, km=km, points=points, in_service_date=vehicle.in_service_date,
                          today=local_today(), current_km=vehicle.current_km, max_daily_km=policy["usage"]["max_daily_km"],
                          reading=reading, recorded_at=recorded_at)
@@ -193,15 +203,39 @@ def create_app(database_url: str | None = None, api_key: str | None = None, poli
         result = []
         for vehicle in session.scalars(select(Vehicle).order_by(Vehicle.id)):
             plan = evaluate(session, vehicle, catalog, policy)
-            visits = [visit["planned_date"] for visit in plan["visits"]]
-            result.append({**serialize(vehicle), "traffic_light": plan["traffic_light"], "next_visit_date": min(visits) if visits else None,
+            result.append({**serialize(vehicle), "traffic_light": plan["traffic_light"], "next_visit_date": next_visit_date(session, vehicle.id, plan["visits"]),
                            "open_alerts": len(plan["alerts"]), "usage_km_per_day": plan["usage"]["km_per_day"]})
         priority = {"red": 0, "amber": 1, "gray": 2, "green": 3}
         return sorted(result, key=lambda row: (priority[row["traffic_light"]], row["next_visit_date"] or "9999-12-31", row["id"]))
 
     @api.post("/vehicles", status_code=201)
     def create_vehicle(payload: VehicleCreate, session: Session = Depends(session_dependency, scope="function")):
-        variant = variant_map.get(payload.variant_id)
+        values = payload.model_dump()
+        if values["severity_multiplier"] is None:
+            values["severity_multiplier"] = float(policy["planning"].get("default_severity_multiplier", 1))
+        variant = variant_map.get(payload.variant_id or "")
+        mazda_catalog_requested = payload.maintenance_catalog == MAZDA3_CATALOG_KEY
+        if variant is None:
+            if mazda_catalog_requested:
+                raise HTTPException(422, "Para usar el catálogo Mazda3 seleccione una variante documentada.")
+            required_manual_fields = ("make", "model", "version", "body_style", "engine", "transmission", "drive")
+            if any(not values[field] for field in required_manual_fields):
+                raise HTTPException(422, "Para dar de alta una unidad manual indique marca, modelo, versión, carrocería, motor, transmisión y tracción.")
+            # An optional/unknown catalog is retained as data for a future
+            # integration, but it has no rules until that catalog is loaded.
+            vehicle = Vehicle(**values)
+            session.add(vehicle)
+            session.flush()
+            session.add(OdometerReading(vehicle_id=vehicle.id, date=local_today(), odometer_km=vehicle.current_km))
+            session.flush()
+            evaluate(session, vehicle, catalog, policy)
+            return serialize(vehicle)
+        if payload.maintenance_catalog not in (None, MAZDA3_CATALOG_KEY):
+            raise HTTPException(422, "La variante Mazda3 no puede combinarse con otro catálogo de mantenimiento.")
+        if payload.make and compact_name(payload.make) != "mazda":
+            raise HTTPException(422, "La marca no coincide con la variante Mazda3 seleccionada.")
+        if payload.model and compact_name(payload.model) != "mazda3":
+            raise HTTPException(422, "El modelo no coincide con la variante Mazda3 seleccionada.")
         if not variant or variant["anio_modelo"] != payload.model_year or payload.transmission not in variant["transmisiones"]:
             raise HTTPException(422, "Año, versión o transmisión fuera de la matriz Mazda3 México documentada.")
         if payload.in_service_date.year < payload.model_year - 1:
@@ -209,8 +243,13 @@ def create_app(database_url: str | None = None, api_key: str | None = None, poli
         values = payload.model_dump()
         if values["severity_multiplier"] is None:
             values["severity_multiplier"] = float(policy["planning"].get("default_severity_multiplier", 1))
-        vehicle = Vehicle(**values, version=variant["version"], body_style=variant["carroceria"],
-                          engine=variant["motor"], drive=variant["traccion"])
+        vehicle_values = values | {
+            "make": "Mazda", "model": "Mazda3", "maintenance_catalog": MAZDA3_CATALOG_KEY,
+            "version": variant["version"], "body_style": variant["carroceria"],
+            "engine": variant["motor"], "drive": variant["traccion"],
+            "fuel_type": payload.fuel_type or "Gasolina",
+        }
+        vehicle = Vehicle(**vehicle_values)
         session.add(vehicle)
         session.flush()
         session.add(OdometerReading(vehicle_id=vehicle.id, date=local_today(), odometer_km=vehicle.current_km))
@@ -251,6 +290,112 @@ def create_app(database_url: str | None = None, api_key: str | None = None, poli
         evaluate(session, vehicle, catalog, policy)
         return serialize(row)
 
+    def applicable_service(vehicle: Vehicle, service_id: str) -> dict:
+        service = service_map.get(service_id)
+        if not uses_mazda3_catalog(vehicle) or service is None or not matches_service(serialize(vehicle), service):
+            raise HTTPException(422, "El servicio seleccionado no corresponde al catálogo de esta unidad. Describa el trabajo realizado para un registro manual.")
+        return service
+
+    def find_appointment(session: Session, vehicle_id: int, appointment_id: str) -> CalendarAppointment:
+        appointment = session.get(CalendarAppointment, appointment_id)
+        if appointment is None or appointment.vehicle_id != vehicle_id:
+            raise HTTPException(404, "Cita no encontrada para esta unidad.")
+        if appointment.status != "scheduled":
+            raise HTTPException(409, "Esta cita ya se completó. Consulte el historial antes de registrar otro servicio.")
+        return appointment
+
+    @api.post("/vehicles/{vehicle_id}/appointments", status_code=201)
+    def create_appointment(vehicle_id: int, payload: AppointmentCreate, session: Session = Depends(session_dependency, scope="function")):
+        vehicle = find_vehicle(session, vehicle_id)
+        if payload.scheduled_date < vehicle.in_service_date:
+            raise HTTPException(422, "La fecha no puede ser anterior a la puesta en servicio de la unidad.")
+        for service_id in payload.service_ids:
+            applicable_service(vehicle, service_id)
+        source = session.get(VisitPlan, payload.original_visit_id) if payload.original_visit_id else None
+        if payload.original_visit_id and (source is None or source.vehicle_id != vehicle_id or not set(payload.service_ids) <= set(source.payload["service_ids"])):
+            raise HTTPException(422, "La visita de origen no corresponde a los servicios de esta unidad. Actualice el calendario.")
+        anchors = cycle_anchors(session, vehicle_id, payload.service_ids)
+        for existing in session.scalars(select(CalendarAppointment).where(CalendarAppointment.vehicle_id == vehicle_id, CalendarAppointment.status == "scheduled")):
+            if any(item in remaining_services(existing) and anchors[item] == existing.cycle_anchors.get(item, 0) for item in payload.service_ids):
+                raise HTTPException(409, "Uno de estos servicios ya tiene una fecha registrada. Use Cambiar fecha en esa cita.")
+        row = CalendarAppointment(id=str(uuid4()), vehicle_id=vehicle_id, scheduled_date=payload.scheduled_date,
+                                  service_ids=payload.service_ids, completed_service_ids=[], cycle_anchors=anchors,
+                                  original_visit_id=payload.original_visit_id,
+                                  original_date=source.planned_date if source else None, notes=payload.notes)
+        session.add(row)
+        session.flush()
+        session.add(AppointmentChange(appointment_id=row.id, previous_date=row.original_date,
+                                     scheduled_date=row.scheduled_date, notes=row.notes))
+        session.flush()
+        return appointment_payload(session, row, vehicle)
+
+    @api.patch("/vehicles/{vehicle_id}/appointments/{appointment_id}")
+    def reschedule_appointment(vehicle_id: int, appointment_id: str, payload: AppointmentUpdate, session: Session = Depends(session_dependency, scope="function")):
+        vehicle = find_vehicle(session, vehicle_id)
+        row = find_appointment(session, vehicle_id, appointment_id)
+        if payload.scheduled_date < vehicle.in_service_date:
+            raise HTTPException(422, "La fecha no puede ser anterior a la puesta en servicio de la unidad.")
+        if row.scheduled_date != payload.scheduled_date or (payload.notes is not None and payload.notes != row.notes):
+            session.add(AppointmentChange(appointment_id=row.id, previous_date=row.scheduled_date,
+                                         scheduled_date=payload.scheduled_date, notes=payload.notes or ""))
+            row.scheduled_date = payload.scheduled_date
+            if payload.notes is not None:
+                row.notes = payload.notes
+            row.updated_at = utc_now()
+            session.flush()
+        return appointment_payload(session, row, vehicle)
+
+    @api.post("/vehicles/{vehicle_id}/services/batch", status_code=201)
+    def capture_services(vehicle_id: int, payload: ServiceBatchCreate, session: Session = Depends(session_dependency, scope="function")):
+        vehicle = find_vehicle(session, vehicle_id)
+        if payload.performed_on < vehicle.in_service_date:
+            raise HTTPException(422, "La fecha del servicio no puede ser anterior a la puesta en servicio de la unidad.")
+        if payload.odometer_km is not None:
+            validate_chronology(session, vehicle, payload.performed_on, payload.odometer_km, reading=False)
+        appointment = find_appointment(session, vehicle_id, payload.appointment_id) if payload.appointment_id else None
+        services = {item: applicable_service(vehicle, item) for item in payload.service_ids}
+        if appointment:
+            for item in set(payload.service_ids) & set(remaining_services(appointment)):
+                anchor_id = appointment.cycle_anchors.get(item, 0)
+                anchor = session.get(ServiceHistory, anchor_id) if anchor_id else None
+                if anchor and payload.performed_on < anchor.performed_on:
+                    raise HTTPException(422, "Ese servicio es anterior al ciclo de la cita. Regístrelo desde Registrar servicio sin vincular esta cita.")
+        if payload.manual_description:
+            identity = " ".join(payload.manual_description.casefold().split())
+            service_id = "manual_" + hashlib.sha256(identity.encode()).hexdigest()[:32]
+            service = {"id": service_id, "servicio": payload.manual_description, "manual": True}
+            services[service_id] = service
+            if session.get(ServiceCatalog, service_id) is None:
+                session.add(ServiceCatalog(id=service_id, catalog_version="administrative-v1", source_snapshot=service))
+                session.flush()
+        duplicate = session.scalar(select(ServiceHistory.id).where(
+            ServiceHistory.vehicle_id == vehicle_id, ServiceHistory.performed_on == payload.performed_on,
+            ServiceHistory.service_id.in_(services)))
+        if duplicate is not None:
+            raise HTTPException(409, "Uno de los servicios ya está registrado en esa fecha. Revise el historial; no se guardó ningún servicio del lote.")
+        prior = session.scalar(select(PlanEvaluation).where(PlanEvaluation.vehicle_id == vehicle_id,
+            PlanEvaluation.evaluated_at < date_timestamp(payload.performed_on)).order_by(PlanEvaluation.evaluated_at.desc(), PlanEvaluation.id.desc()).limit(1))
+        captured_at = utc_now()
+        records = []
+        for service_id, service in services.items():
+            prediction = next((item for item in prior.result["services"] if item["service_id"] == service_id), None) if prior else None
+            due = date.fromisoformat(prediction["due_date"]) if prediction and prediction.get("due_date") else None
+            row = ServiceHistory(vehicle_id=vehicle_id, service_id=service_id,
+                performed_on=payload.performed_on, odometer_km=payload.odometer_km,
+                notes=payload.notes, maintenance_type=payload.maintenance_type,
+                catalog_snapshot=service, captured_at=captured_at, appointment_id=payload.appointment_id,
+                predicted_due_date=due, prediction_error_days=(payload.performed_on - due).days if due else None,
+                prediction_evaluation_id=prior.id if due else None)
+            session.add(row)
+            records.append(row)
+        if payload.odometer_km is not None:
+            vehicle.current_km = max(vehicle.current_km, payload.odometer_km)
+        session.flush()
+        finish_appointments(session, vehicle_id, records)
+        session.flush()
+        evaluate(session, vehicle, catalog, policy)
+        return {"created": len(records), "records": [serialize(row) for row in records], "appointment_id": payload.appointment_id}
+
     @api.post("/vehicles/{vehicle_id}/readings/batch")
     def create_reading_batch(vehicle_id: int, payload: ReadingBatch, session: Session = Depends(session_dependency, scope="function")):
         """Bounded, all-or-nothing import. Exact replays skip; conflicts roll back."""
@@ -276,6 +421,8 @@ def create_app(database_url: str | None = None, api_key: str | None = None, poli
     @api.post("/vehicles/{vehicle_id}/services", status_code=201)
     def create_service(vehicle_id: int, payload: ServiceCreate, session: Session = Depends(session_dependency, scope="function")):
         vehicle = find_vehicle(session, vehicle_id)
+        if not uses_mazda3_catalog(vehicle):
+            raise HTTPException(422, "La unidad no tiene un catálogo técnico cargado para registrar este servicio programado.")
         service = service_map.get(payload.service_id)
         if service is None or not matches_service(serialize(vehicle), service):
             raise HTTPException(422, "Servicio desconocido o no aplicable al motor, transmisión o régimen registrado.")
@@ -298,13 +445,15 @@ def create_app(database_url: str | None = None, api_key: str | None = None, poli
         session.add(row)
         vehicle.current_km = max(vehicle.current_km, payload.odometer_km)
         session.flush()
+        finish_appointments(session, vehicle_id, [row])
+        session.flush()
         evaluate(session, vehicle, catalog, policy)
         return serialize(row)
 
     @api.post("/vehicles/{vehicle_id}/faults", status_code=201)
     def create_fault(vehicle_id: int, payload: FaultCreate, session: Session = Depends(session_dependency, scope="function")):
         vehicle = find_vehicle(session, vehicle_id)
-        if payload.service_id and (payload.service_id not in service_map or not matches_service(serialize(vehicle), service_map[payload.service_id])):
+        if payload.service_id and (not uses_mazda3_catalog(vehicle) or payload.service_id not in service_map or not matches_service(serialize(vehicle), service_map[payload.service_id])):
             raise HTTPException(422, "El componente reportado no corresponde a esta unidad.")
         row = FaultReport(vehicle_id=vehicle_id, reported_on=local_today(), **payload.model_dump())
         session.add(row)
@@ -332,8 +481,7 @@ def create_app(database_url: str | None = None, api_key: str | None = None, poli
             raise HTTPException(422, "Seleccione un rango ordenado de hasta 366 días.")
         for vehicle in session.scalars(select(Vehicle)):
             evaluate(session, vehicle, catalog, policy)
-        rows = session.execute(select(VisitPlan, Vehicle).join(Vehicle).where(VisitPlan.status == "proposed", VisitPlan.planned_date >= start, VisitPlan.planned_date <= end).order_by(VisitPlan.planned_date, Vehicle.id))
-        return [{**visit.payload, "id": visit.id, "vehicle_id": vehicle.id, "plate": vehicle.plate, "version": vehicle.version} for visit, vehicle in rows]
+        return calendar_entries(session, start, end)
 
     @api.get("/alerts")
     def alerts(session: Session = Depends(session_dependency, scope="function")):
